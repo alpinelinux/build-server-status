@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Alpine Linux builds</title>
+	<link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+	<style>
+		body { padding: 15px; }
+		.host, .msgs, .prgr_built, .prgr_total, .progress-value { white-space: nowrap; }
+		.msgs { width: 400px; font-size: 0.9em; }
+		.progress-value { font-size: 0.8em; position: relative; bottom: 3px;}
+		.sortable a { color: black; text-decoration: none; }
+		.sortable th span { display: none; }
+		#mqtt_connect_status { font-size: 0.8em; }
+	</style>
+	<script src="js/mqttws31.js" type="text/javascript"></script>
+	<script src="js/minified.js" type="text/javascript"></script>
+	<script src="js/sortable.js" type="text/javascript"></script>
+	<script language="javascript" type="text/javascript">
+		var MINI = require('minified');
+		var _=MINI._, $=MINI.$, $$=MINI.$$, EE=MINI.EE, HTML=MINI.HTML;
+
+		var wsHost = "msg.alpinelinux.org";
+		var wsPort = "8083";
+		var wsSub = "build/#";
+		var max_mqtt_msgs_count = 3;
+
+		function connect(){
+			// !!!!!!!! temporary
+			if (window.location.search.match(/localhost/g)){ wsHost = "localhost"; }
+
+			// Create a client instance
+			var clientId = Math.random().toString(36).substr(2, 22); // length - 20 symb
+			var client = new Paho.MQTT.Client(wsHost, Number(wsPort), clientId);
+
+			// set callback handlers
+			client.onConnectionLost = onConnectionLost;
+			client.onMessageArrived = onMessageArrived;
+
+			// connect the client
+			client.connect({onSuccess:onConnect,onFailure:onFailure});
+
+			// called when the client connects
+			function onConnect() {
+				// Once a connection has been made, make a subscription
+				client.subscribe(wsSub);
+				echo('CONNECTED to websocket. SUBSCRIBED to ' + wsSub, false, 'green');
+
+				// send a message
+				// message = new Paho.MQTT.Message("Hello");
+				// message.destinationName = "World";
+				// client.send(message); 
+			}
+
+			function onFailure() {
+				echo('Sorry, the websocket at "' + wsName + '" is unavailable.', false, 'red');
+				setTimeout('connect();', 2000);
+			}
+
+			// called when the client looses its connection
+			function onConnectionLost(responseObject) {
+				if (responseObject.errorCode !== 0) {
+					echo('CONNECTION LOST<br>' + responseObject.errorMessage, false, 'red');
+					setTimeout('connect();', 2000);
+				}
+			}
+
+			// called when a message arrives
+			function onMessageArrived(message) {
+				var host = message.destinationName || null;
+				host = host ? host.split("build/build-").pop() : null;
+				mqtt_msg(host,message.payloadString);
+			}
+
+			setTimeout('sort_table();', 1500);
+		}
+
+		function echo(msg,mqtt_msg,color){
+			var pre = document.createElement("p");
+			pre.style.wordWrap = "break-word";
+			if (color) pre.style.color = color;
+			pre.innerHTML = msg;
+
+			var output = (mqtt_msg ? document.getElementById("mqtt_msgs") : document.getElementById("mqtt_connect_status"));
+			if (output) output.appendChild(pre);
+
+			var max_msg_count = ( mqtt_msg ? max_mqtt_msgs_count : 1 );
+			if (output && output.childNodes.length > max_msg_count) {
+				output.removeChild(output.firstChild);
+			}
+		}
+
+		function mqtt_msg(host, msg){
+			id = "bs_"+host;
+			if (!$('#servers #'+id).length) {
+				$('#servers').add(EE('tr', {'@id':id}, [
+					EE('td', {'className': 'nr'}, $('#servers tr').length+1),
+					EE('td', {'className': 'host'}, host),
+					EE('td', {'className': 'msgs_container'}),
+					EE('td', {'className': 'prgr_built'}),
+					EE('td', {'className': 'prgr_total'}),
+				]));
+				$('#'+id+' .msgs_container').add(EE('div', {'className': 'msgs'}));
+			}
+
+			if (msg == "idle") {
+				$('#'+id+' .msgs').ht(''); // clear previous messages
+			}else if ($('#'+id+' .msgs span').length >= max_mqtt_msgs_count) {
+				$('#'+id+' .msgs span')[0].remove();
+				$('#'+id+' .msgs br')[0].remove();
+			}
+
+
+			var pat = /^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(.*)/i
+			if (msg.match(pat)) {
+				var msg_arr = msg.match(pat);
+				var built_curr = msg_arr[1];
+				var built_last = msg_arr[2];
+				var repo_curr = msg_arr[3];
+				var repo_last = msg_arr[4];
+				var built_pr = Math.round(built_curr*100/built_last);
+				var repo_pr = Math.round(repo_curr*100/repo_last);
+				msg = msg_arr[5];
+
+				$('#'+id+' .prgr_built').ht('<progress value="'+built_curr+'" max="'+built_last+'"></progress> <span class="progress-value">'+built_pr+'%</span>');
+				$('#'+id+' .prgr_total').ht('<progress value="'+repo_curr+'" max="'+repo_last+'"></progress> <span class="progress-value">'+repo_pr+'%</span>');
+			}else{
+				$('#'+id+' .prgr_built').ht('<progress value="0" max="100"></progress> <span class="progress-value">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span>');
+				$('#'+id+' .prgr_total').ht('<progress value="0" max="100"></progress> <span class="progress-value">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span>');
+			}
+
+			$('#'+id+' .msgs').add([EE('span', msg), EE('br')]);
+		}
+
+		function sort_table(){
+			var host_header = document.getElementById( 'host' ).getElementsByTagName( 'a' )[0];
+			if (host_header) host_header.click(); // this will sort table by host column
+
+			// update order nr's after sorting
+			$('#servers tr').each(function(obj, index) {
+				$('#'+obj.id+' .nr').ht(index+1);
+			});
+		}
+
+		window.addEventListener("load", connect, false);
+	</script>
+</head>
+
+<body>
+	<h3>Alpine Linux Builds:</h3>
+	<table id="builds" class="pure-table pure-table-striped sortable">
+		<thead>
+			<tr>
+				<th>#</th>
+				<th id="host">host</th>
+				<th>activity</th>
+				<th>aport built</th>
+				<th>aport total</th>
+			</tr>
+		</thead>
+		<tbody id="servers">
+		</tbody>
+	</table>
+	<div id="mqtt_connect_status"></div>
+</body>
+</html>
