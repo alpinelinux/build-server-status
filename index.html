@@ -68,8 +68,9 @@
 			// called when a message arrives
 			function onMessageArrived(message) {
 				var host = message.destinationName || null;
-				host = host ? host.split("build/build-").pop() : null;
-				mqtt_msg(host,message.payloadString);
+				host = host ? host.split("/").pop() : null;
+				if (host.match(/^build-/))
+					mqtt_msg(host,message.payloadString);
 			}
 
 			setTimeout('sort_table();', 1500);
