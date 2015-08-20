@@ -44,12 +44,12 @@
 			function onConnect() {
 				// Once a connection has been made, make a subscription
 				client.subscribe(wsSub);
-				echo('CONNECTED to websocket. SUBSCRIBED to ' + wsSub, false, 'green');
+				echo('CONNECTED', false, 'green');
 
 				// send a message
 				// message = new Paho.MQTT.Message("Hello");
 				// message.destinationName = "World";
-				// client.send(message); 
+				// client.send(message);
 			}
 
 			function onFailure() {
