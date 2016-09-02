@@ -24,6 +24,7 @@
 		var wsPort = "8083";
 		var wsSub = "build/#";
 		var max_mqtt_msgs_count = 3;
+		var buildlogsUri = "http://build.alpinelinux.org/buildlogs";
 
 		function connect(){
 			// !!!!!!!! temporary
@@ -121,7 +122,8 @@
 				var repo_last = msg_arr[4];
 				var built_pr = Math.round(built_curr*100/built_last);
 				var repo_pr = Math.round(repo_curr*100/repo_last);
-				msg = msg_arr[5];
+
+				msg = EE('a', {'href': buildlog_url(host, msg_arr[5])}, msg_arr[5]);
 
 				$('#'+id+' .prgr_built').ht('<progress value="'+built_curr+'" max="'+built_last+'"></progress> <span class="progress-value">'+built_pr+'%</span>');
 				$('#'+id+' .prgr_total').ht('<progress value="'+repo_curr+'" max="'+repo_last+'"></progress> <span class="progress-value">'+repo_pr+'%</span>');
@@ -131,6 +133,15 @@
 			}
 
 			$('#'+id+' .msgs').add([EE('span', msg), EE('br')]);
+		}
+
+		function buildlog_url(host, msg) {
+			var tokens = msg.match(/^([^/]+)\/(\S+) (.*)/);
+			var repo = tokens[1];
+			var pkgname = tokens[2];
+			var pkgver = tokens[3];
+
+			return [buildlogsUri, host, repo, pkgname, pkgname].join('/') + '-' + pkgver + '.log';
 		}
 
 		function sort_table(){
