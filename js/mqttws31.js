@@ -89,8 +89,8 @@ Paho.MQTT = (function (global) {
 	// Private variables below, these are only visible inside the function closure
 	// which is used to define the module. 
 
-	var version = "1.0.1";
-	var buildLevel = "2014-11-18T11:57:44Z";
+	var version = "@VERSION@";
+	var buildLevel = "@BUILDLEVEL@";
 	
 	/** 
 	 * Unique message type identifiers, with associated
@@ -181,7 +181,7 @@ Paho.MQTT = (function (global) {
 		UNSUPPORTED_OPERATION: {code:14, text:"AMQJS0014E Unsupported operation."},
 		INVALID_STORED_DATA: {code:15, text:"AMQJS0015E Invalid data in local storage key={0} value={1}."},
 		INVALID_MQTT_MESSAGE_TYPE: {code:16, text:"AMQJS0016E Invalid MQTT message type {0}."},
-		MALFORMED_UNICODE: {code:17, text:"AMQJS0017E Malformed Unicode string:{0} {1}."},
+		MALFORMED_UNICODE: {code:17, text:"AMQJS0017E Malformed Unicode string:{0} {1}."}
 	};
 	
 	/** CONNACK RC Meaning. */
@@ -965,7 +965,7 @@ Paho.MQTT = (function (global) {
 		delete this._traceBuffer;
 	};
 
-	ClientImpl.prototype._doConnect = function (wsurl) {
+	ClientImpl.prototype._doConnect = function (wsurl) { 	        
 		// When the socket is open, this client will send the CONNECT WireMessage using the saved parameters. 
 		if (this.connectOptions.useSSL) {
 		    var uriParts = wsurl.split(":");
@@ -1144,8 +1144,6 @@ Paho.MQTT = (function (global) {
 	 */
 	ClientImpl.prototype._on_socket_message = function (event) {
 		this._trace("Client._on_socket_message", event.data);
-		// Reset the receive ping timer, we now have evidence the server is alive.
-		this.receivePinger.reset();
 		var messages = this._deframeMessages(event.data);
 		for (var i = 0; i < messages.length; i+=1) {
 		    this._handleMessage(messages[i]);
@@ -1298,8 +1296,8 @@ Paho.MQTT = (function (global) {
 				if (sentMessage) {
 					if(sentMessage.timeOut)
 						sentMessage.timeOut.cancel();
-					wireMessage.returnCode.indexOf = Array.prototype.indexOf;
-					if (wireMessage.returnCode.indexOf(0x80) !== -1) {
+					// This will need to be fixed when we add multiple topic support
+          			if (wireMessage.returnCode[0] === 0x80) {
 						if (sentMessage.onFailure) {
 							sentMessage.onFailure(wireMessage.returnCode);
 						} 
@@ -1716,7 +1714,9 @@ Paho.MQTT = (function (global) {
 									   onFailure:"function",
 									   hosts:"object",
 									   ports:"object",
-									   mqttVersion:"number"});
+									   mqttVersion:"number",
+									   mqttVersionExplicit:"boolean",
+									   uris: "object"});
 			
 			// If no keep alive interval is set, assume 60 seconds.
 			if (connectOptions.keepAliveInterval === undefined)
@@ -1734,7 +1734,7 @@ Paho.MQTT = (function (global) {
 			}
 
 			//Check that if password is set, so is username
-			if (connectOptions.password === undefined && connectOptions.userName !== undefined)
+			if (connectOptions.password !== undefined && connectOptions.userName === undefined)
 				throw new Error(format(ERROR.INVALID_ARGUMENT, [connectOptions.password, "connectOptions.password"]))
 
 			if (connectOptions.willMessage) {
