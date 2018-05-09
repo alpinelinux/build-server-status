@@ -11,6 +11,7 @@
 		.progress-value { font-size: 0.8em; position: relative; bottom: 3px;}
 		.sortable a { color: black; text-decoration: none; }
 		.sortable th span { display: none; }
+		.errmsgs { color: red; }
 		#mqtt_connect_status { font-size: 0.8em; }
 	</style>
 	<script src="js/mqttws31.js" type="text/javascript"></script>
@@ -28,7 +29,7 @@
 
 		function connect(){
 			// !!!!!!!! temporary
-			if (window.location.search.match(/localhost/g)){ wsHost = "localhost"; }
+//			if (window.location.search.match(/localhost/g)){ wsHost = "localhost"; }
 
 			// Create a client instance
 			var clientId = Math.random().toString(36).substr(2, 22); // length - 20 symb
@@ -69,9 +70,16 @@
 			// called when a message arrives
 			function onMessageArrived(message) {
 				var host = message.destinationName || null;
-				host = host ? host.split("/").pop() : null;
-				if (host.match(/^build-/))
-					mqtt_msg(host,message.payloadString);
+				if (host == null)
+					return;
+				var a = host.split("/");
+				var err = false;
+				if (a[2] == "errors") {
+					err = true;
+				}
+				host = a[1];
+				if (host && host.match(/^build-/))
+					mqtt_msg(host,message.payloadString,err);
 			}
 
 			setTimeout('sort_table();', 1500);
@@ -92,17 +100,20 @@
 			}
 		}
 
-		function mqtt_msg(host, msg){
+		function mqtt_msg(host, msg, err){
 			id = "bs_"+host;
 			if (!$('#servers #'+id).length) {
 				$('#servers').add(EE('tr', {'@id':id}, [
 					EE('td', {'className': 'nr'}, $('#servers tr').length+1),
 					EE('td', {'className': 'host'}, host),
 					EE('td', {'className': 'msgs_container'}),
+					EE('td', {'className': 'errmsgs_container'}),
+
 					EE('td', {'className': 'prgr_built'}),
 					EE('td', {'className': 'prgr_total'}),
 				]));
 				$('#'+id+' .msgs_container').add(EE('div', {'className': 'msgs'}));
+				$('#'+id+' .errmsgs_container').add(EE('div', {'className': 'errmsgs'}));
 			}
 
 			if (msg == "idle") {
@@ -112,9 +123,17 @@
 				$('#'+id+' .msgs br')[0].remove();
 			}
 
-
 			var pat = /^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(.*)/i
-			if (msg.match(pat)) {
+			if (err) {
+				var obj = JSON.parse(msg);
+				var errmsg = EE('a', {'href': obj.logurl, 'className':"errmsgs"}, obj.reponame+"/"+obj.pkgname);
+				if ($('#'+id+' .errmsgs span').length >= max_mqtt_msgs_count) {
+					$('#'+id+' .errmsgs span')[0].remove();
+					$('#'+id+' .errmsgs br')[0].remove();
+				}
+				$('#'+id+' .errmsgs').add([EE('span', errmsg), EE('br')]);
+				return;
+			} else if (msg.match(pat)) {
 				var msg_arr = msg.match(pat);
 				var built_curr = msg_arr[1];
 				var built_last = msg_arr[2];
@@ -127,7 +146,7 @@
 
 				$('#'+id+' .prgr_built').ht('<progress value="'+built_curr+'" max="'+built_last+'"></progress> <span class="progress-value">'+built_pr+'%</span>');
 				$('#'+id+' .prgr_total').ht('<progress value="'+repo_curr+'" max="'+repo_last+'"></progress> <span class="progress-value">'+repo_pr+'%</span>');
-			}else{
+			} else {
 				$('#'+id+' .prgr_built').ht('<progress value="0" max="100"></progress> <span class="progress-value">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span>');
 				$('#'+id+' .prgr_total').ht('<progress value="0" max="100"></progress> <span class="progress-value">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span>');
 			}
@@ -166,6 +185,7 @@
 				<th>#</th>
 				<th id="host">host</th>
 				<th>activity</th>
+				<th>last error</th>
 				<th>aport built</th>
 				<th>aport total</th>
 			</tr>
@@ -174,5 +194,6 @@
 		</tbody>
 	</table>
 	<div id="mqtt_connect_status"></div>
+	<div id="mqtt_msgs"></div>
 </body>
 </html>
