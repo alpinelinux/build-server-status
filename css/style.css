@@ -1,0 +1,285 @@
+/* global styles */
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    color: #526066;
+}
+
+.host, .msgs, .prgr_built, .prgr_total, .progress-value { white-space: nowrap; }
+.msgs { width: 400px; font-size: 0.9em; }
+.progress-value { font-size: 0.8em; position: relative; bottom: 3px;}
+.sortable a { color: black; text-decoration: none; }
+.sortable th span { display: none; }
+.errmsgs { color: red; }
+#mqtt_connect_status { font-size: 0.8em; font-weight: bold;}
+
+h1, h2, h3 {
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: black;
+}
+
+h1 { font-size: 1.5em }
+h2 { font-size: 1em }
+h3 { font-size: 0.8em }
+
+p {
+    line-height: 1.6em;
+    padding-top: 0.2em;
+    padding-bottom: 0.2em;
+}
+
+a {
+    text-decoration: none;
+    color: rgb(61, 146, 201);
+}
+
+#wrapper {
+    min-height: 100%;
+    position: relative;
+}
+
+.text-success {
+    color: #3c763d;
+}
+
+.text-danger {
+    color: #a94442;
+}
+
+.text-warning {
+    color: #8a6d3b;
+}
+
+.text-secondary {
+    color: rgb(66, 184, 221);
+}
+
+.grid-head {
+    background-color: #e0e0e0;
+    padding: 0.5em 1em;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+
+.grid-body {
+    padding: 2em;
+    border: 1px solid #cbcbcb;
+    border-top: 0;
+    margin-bottom: 2em;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* header settings */
+
+header {
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    border-bottom: 1px solid #ccc;
+}
+
+header .logo {
+    padding:1em;
+}
+
+header .menu-local {
+    position: absolute;
+    bottom: 0;
+}
+
+header .menu-external {
+    text-align: right;
+    font-style: italic;
+}
+
+header .box-relative {
+    position: relative;
+}
+
+/* hamburger menu */
+
+body {
+    /* fix for android */
+    -webkit-animation: bugfix infinite 1s;
+}
+
+@-webkit-keyframes bugfix {
+    from { padding: 0; }
+    to { padding: 0; }
+}
+
+#menu-toggle-cb {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+}
+
+#menu-toggle {
+    cursor: pointer;
+    user-select: none;
+    width: 38px;
+    height: 36px;
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: none;
+}
+
+#menu-toggle .bar {
+    background-color: #777;
+    display: block;
+    width: 24px;
+    height: 4px;
+    border-radius: 100px;
+    position: absolute;
+    top: 16px;
+    right: 7px;
+}
+
+#menu-toggle .bar:first-child {
+    top: 8px;
+}
+
+#menu-toggle .bar:last-child {
+    top: 24px;
+}
+
+/* Make the hamburger menu do visual magic */
+
+#menu-toggle-cb:checked ~ #menu-toggle .bar:first-child {
+    -webkit-transform: rotate(-45deg);
+    -moz-transform: rotate(-45deg);
+    -ms-transform: rotate(-45deg);
+    transform: rotate(-45deg);
+}
+
+#menu-toggle-cb:checked ~ #menu-toggle .bar:last-child {
+    -webkit-transform: rotate(45deg);
+    -moz-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    transform: rotate(45deg);
+}
+
+#menu-toggle-cb:checked ~ #menu-toggle .bar:nth-child(odd) {
+    top: 16px;
+}
+
+#menu-toggle-cb:checked ~ #menu-toggle .bar:nth-child(even) {
+    display: none;
+}
+
+/*
+ * form styling
+ */
+
+.input-error label,
+.input-error .pure-form-message {
+    color: #a94442;
+}
+
+.input-error input[type=email],
+.input-error input[type=text],
+.input-error textarea {
+    border: 1px solid #a94442;
+    background-color: #f2dede;
+}
+
+/* Main */
+
+main {
+    margin: 0 auto;
+    min-width: 200px;
+    max-width: 1320px;
+    padding: 0em 1em 2em 1em;
+    padding: 2em;
+    padding-bottom: 5em;
+}
+
+.overflow-table {
+    overflow: auto;
+}
+
+/*
+ * Footer styling
+ */
+
+footer {
+    background: #111;
+    color: #888;
+    text-align: center;
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    padding-top: 0.8em;
+    padding-bottom: 0.8em;
+    font-size: 0.8em;
+}
+
+footer a { 
+    color: #ddd;
+}
+
+
+/*
+ * MEDIA queries
+ */
+
+/* phones */
+
+@media (min-width: 31em) {}
+
+/* tablets */
+
+@media(min-width: 48em) {}
+
+/* responsive menu */
+
+@media (max-width: 63.999em) {
+    header .logo img {
+        max-width: 16em;
+    }
+    header .menu-external {
+        text-align: left;
+        font-style: normal;
+    }
+
+    header .menu-local {
+        position: static;
+        bottom: auto;
+    }
+    
+    #menu-toggle {
+        display: block;
+    }
+
+    .menu-wrapper nav.pure-menu ul,
+    .menu-wrapper nav.pure-menu ul li {
+        display: block;
+    }
+
+    #menu-toggle-cb ~ .menu-wrapper {
+        max-height: 0;
+        overflow: hidden;
+    }
+
+    #menu-toggle-cb:checked ~ .menu-wrapper {
+        max-height: 25em;
+    }
+
+    #menu-toggle-cb ~ .menu-wrapper,
+    #menu-toggle-cb:checked ~ .menu-wrapper {
+        -webkit-transition: max-height 0.8s;
+        -moz-transition: max-height 0.8s;
+        -ms-transition: max-height 0.8s;
+        -o-transition: max-height 0.8s;
+        transition: max-height 0.8s;
+    }
+
+}
