@@ -97,6 +97,10 @@ function mqtt_msg(host, msg, err){
 
 	var pat = /^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(.*)/i
 	if (err) {
+		if (msg == null) {
+			$('#'+id+' .errmsgs').ht(''); // clear previous messages
+			return;
+		}
 		var obj = JSON.parse(msg);
 		var errmsg = EE('a', {'href': obj.logurl, 'className':"errmsgs"}, obj.reponame+"/"+obj.pkgname);
 		if ($('#'+id+' .errmsgs span').length >= max_mqtt_msgs_count) {
