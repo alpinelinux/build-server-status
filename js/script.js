@@ -2,7 +2,7 @@ var MINI = require('minified');
 var _=MINI._, $=MINI.$, $$=MINI.$$, EE=MINI.EE, HTML=MINI.HTML;
 
 var wsHost = "msg.alpinelinux.org";
-var wsPort = "443";
+var wsPort = "8083";
 var wsSub = "build/#";
 var max_mqtt_msgs_count = 3;
 var buildlogsUri = "http://build.alpinelinux.org/buildlogs";
