@@ -27,7 +27,7 @@ function connect(){
 	}
 
 	function onFailure() {
-		echo('Sorry, the websocket at "' + wsName + '" is unavailable.', false, 'red');
+		echo('Sorry, the websocket at "' + wsHost + '" is unavailable.', false, 'red');
 		setTimeout('connect();', 2000);
 	}
 
