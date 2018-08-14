@@ -97,7 +97,7 @@ function mqtt_msg(host, msg, err){
 
 	var pat = /^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(.*)/i
 	if (err) {
-		if (msg == null) {
+		if (!msg) {
 			$('#'+id+' .errmsgs').ht(''); // clear previous messages
 			return;
 		}
