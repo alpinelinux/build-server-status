@@ -97,17 +97,12 @@ function mqtt_msg(host, msg, err){
 
 	var pat = /^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(.*)/i
 	if (err) {
-		if (!msg) {
-			$('#'+id+' .errmsgs').ht(''); // clear previous messages
-			return;
+		var errmsg = '';
+		if (msg) {
+			var obj = JSON.parse(msg);
+			errmsg = EE('a', {'href': obj.logurl, 'className':"errmsgs"}, obj.reponame+"/"+obj.pkgname);
 		}
-		var obj = JSON.parse(msg);
-		var errmsg = EE('a', {'href': obj.logurl, 'className':"errmsgs"}, obj.reponame+"/"+obj.pkgname);
-		if ($('#'+id+' .errmsgs span').length >= max_mqtt_msgs_count) {
-			$('#'+id+' .errmsgs span')[0].remove();
-			$('#'+id+' .errmsgs br')[0].remove();
-		}
-		$('#'+id+' .errmsgs').add([EE('span', errmsg), EE('br')]);
+		$('#'+id+' .errmsgs').replace(errmsg);
 		return;
 	} else if (msg.match(pat)) {
 		var msg_arr = msg.match(pat);
