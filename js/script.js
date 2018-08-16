@@ -72,20 +72,25 @@ function echo(msg,mqtt_msg,color){
 	}
 }
 
-function mqtt_msg(host, msg, err){
-	id = "bs_"+host;
-	if (!$('#servers #'+id).length) {
-		$('#servers').add(EE('tr', {'@id':id}, [
-			EE('td', {'className': 'nr'}, $('#servers tr').length+1),
-			EE('td', {'className': 'host'}, host),
-			EE('td', {'className': 'msgs_container'}),
-			EE('td', {'className': 'errmsgs_container'}),
+function add_server_row(host) {
+	var id = "bs_"+host;
+	$('#servers').add(EE('tr', {'@id':id}, [
+		EE('td', {'className': 'nr'}, $('#servers tr').length+1),
+		EE('td', {'className': 'host'}, host),
+		EE('td', {'className': 'msgs_container'}),
+		EE('td', {'className': 'errmsgs_container'}),
 
-			EE('td', {'className': 'prgr_built'}),
-			EE('td', {'className': 'prgr_total'}),
-		]));
-		$('#'+id+' .msgs_container').add(EE('div', {'className': 'msgs'}));
-		$('#'+id+' .errmsgs_container').add(EE('div', {'className': 'errmsgs'}));
+		EE('td', {'className': 'prgr_built'}),
+		EE('td', {'className': 'prgr_total'}),
+	]));
+	$('#'+id+' .msgs_container').add(EE('div', {'className': 'msgs'}));
+	$('#'+id+' .errmsgs_container').add(EE('div', {'className': 'errmsgs'}));
+}
+
+function mqtt_msg(host, msg, err){
+	var id = "bs_"+host;
+	if (!$('#servers #'+id).length) {
+		add_server_row(host);
 	}
 
 	if (msg == "idle") {
