@@ -72,8 +72,12 @@ function echo(msg,mqtt_msg,color){
 	}
 }
 
+function get_id(host) {
+	return "bs_"+host;
+}
+
 function add_server_row(host) {
-	var id = "bs_"+host;
+	var id = get_id(host);
 	$('#servers').add(EE('tr', {'@id':id}, [
 		EE('td', {'className': 'nr'}, $('#servers tr').length+1),
 		EE('td', {'className': 'host'}, host),
@@ -87,10 +91,24 @@ function add_server_row(host) {
 	$('#'+id+' .errmsgs_container').add(EE('div', {'className': 'errmsgs'}));
 }
 
+function builderror_msg(host, msg) {
+	var id = get_id(host);
+	var errmsg = '';
+	if (msg) {
+		var obj = JSON.parse(msg);
+		errmsg = EE('a', {'href': obj.logurl, 'className':"errmsgs"}, obj.reponame+"/"+obj.pkgname);
+	}
+	return $('#'+id+' .errmsgs').replace(errmsg);
+}
+
 function mqtt_msg(host, msg, err){
-	var id = "bs_"+host;
+	var id = get_id(host);
 	if (!$('#servers #'+id).length) {
 		add_server_row(host);
+	}
+
+	if (err) {
+		return builderror_msg(host, msg);
 	}
 
 	if (msg == "idle") {
@@ -101,15 +119,7 @@ function mqtt_msg(host, msg, err){
 	}
 
 	var pat = /^(\d+)\/(\d+)\s+(\d+)\/(\d+)\s+(.*)/i
-	if (err) {
-		var errmsg = '';
-		if (msg) {
-			var obj = JSON.parse(msg);
-			errmsg = EE('a', {'href': obj.logurl, 'className':"errmsgs"}, obj.reponame+"/"+obj.pkgname);
-		}
-		$('#'+id+' .errmsgs').replace(errmsg);
-		return;
-	} else if (msg.match(pat)) {
+	if (msg.match(pat)) {
 		var msg_arr = msg.match(pat);
 		var built_curr = msg_arr[1];
 		var built_last = msg_arr[2];
