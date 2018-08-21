@@ -6,6 +6,7 @@ var wsPort = "443";
 var wsSub = "build/#";
 var max_mqtt_msgs_count = 3;
 var buildlogsUri = "http://build.alpinelinux.org/buildlogs";
+var lastmsg = {};
 
 function connect(){
 	// Create a client instance
@@ -110,6 +111,11 @@ function mqtt_msg(host, msg, err){
 	if (err) {
 		return builderror_msg(host, msg);
 	}
+
+	if (msg == lastmsg[host]) {
+		return;
+	}
+	lastmsg[host] = msg;
 
 	if (msg == "idle") {
 		$('#'+id+' .msgs').ht(''); // clear previous messages
