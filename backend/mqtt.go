@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/eclipse/paho.mqtt.golang"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -66,7 +67,7 @@ func MessageFromString(topic, msg string) Message {
 		}
 		err := json.Unmarshal([]byte(msg), &m)
 		if err != nil {
-			fmt.Printf("err: %s", err)
+			log.Error().Err(err)
 			return genericMessage
 		}
 
@@ -118,6 +119,10 @@ type BuildErrorMessage struct {
 
 func MessageHandler(ctx context.Context, msgs chan Message) mqtt.MessageHandler {
 	return func(c mqtt.Client, m mqtt.Message) {
+		log.Debug().
+			Str("topic", m.Topic()).
+			Str("payload", string(m.Payload())).
+			Msg("Received message from broker")
 		msgs <- MessageFromString(m.Topic(), string(m.Payload()))
 	}
 }
