@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -56,10 +57,24 @@ func MessageFromString(topic, msg string) Message {
 	}
 
 	switch {
+	case strings.HasSuffix(topic, "/errors"):
+		builder, _, _ := strings.Cut(genericMessage.Builder, "/")
+		genericMessage.MsgType = "error"
+		genericMessage.Builder = builder
+		m := BuildErrorMessage{
+			GenericMessage: genericMessage,
+		}
+		err := json.Unmarshal([]byte(msg), &m)
+		if err != nil {
+			fmt.Printf("err: %s", err)
+			return genericMessage
+		}
+
+		return m
 	case progressMessagePattern.MatchString(msg):
 		genericMessage.MsgType = "progress"
 		submatches := progressMessagePattern.FindStringSubmatch(msg)
-		msg := BuildStatusMessage{
+		m := BuildStatusMessage{
 			GenericMessage: genericMessage,
 			BuildProgress:  ProgressFromString(submatches[1]),
 			TotalProgress:  ProgressFromString(submatches[2]),
@@ -67,7 +82,7 @@ func MessageFromString(topic, msg string) Message {
 			PackageVersion: submatches[4],
 		}
 
-		return msg
+		return m
 	default:
 		return genericMessage
 	}
@@ -91,6 +106,14 @@ type BuildStatusMessage struct {
 
 func (m BuildStatusMessage) Get() string {
 	return fmt.Sprintf("%s: %s %s %s %s", m.Builder, m.BuildProgress, m.TotalProgress, m.PackageName, m.PackageVersion)
+}
+
+type BuildErrorMessage struct {
+	GenericMessage
+	Reponame string
+	Pkgname  string
+	Logurl   string
+	Hostname string
 }
 
 func MessageHandler(ctx context.Context, msgs chan Message) mqtt.MessageHandler {
