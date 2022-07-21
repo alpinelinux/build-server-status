@@ -1,0 +1,22 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  build:
+    env:
+      CGO_ENABLED: 0
+    cmds:
+      - go build cmd/build-server-status.go
+    generates:
+      - build-server-status
+    sources:
+      - ./*.go
+      - ./**/*.go
+  run:
+    deps: [build]
+    cmds:
+      - cmd: docker compose up --build -d
+        silent: true
+      - cmd: docker compose logs --tail=20 -f backend
+        interactive: true
