@@ -13,7 +13,7 @@ func Run(ctx context.Context, client mqtt.Client) error {
 		return fmt.Errorf("error connecting to broker: %w", t.Error())
 	}
 
-	msgs := make(chan Message)
+	msgs := make(chan Message, 16)
 
 	if t := client.Subscribe("build/#", 0,
 		MessageHandler(
@@ -23,12 +23,13 @@ func Run(ctx context.Context, client mqtt.Client) error {
 		return fmt.Errorf("error subscribing to topic: %w", t.Error())
 	}
 
-	log.Info().Msg("Server started")
+	ctxPublisher, cancelPublisher := context.WithCancel(ctx)
+	defer cancelPublisher()
 
-	for msg := range msgs {
-		log.Info().
-			Msg(msg.Get())
-	}
+	publisher := NewBuildStatusPublisher(msgs)
+	go publisher.PublishBuildStatus(ctxPublisher)
+
+	log.Info().Msg("Server started")
 
 	<-ctx.Done()
 
