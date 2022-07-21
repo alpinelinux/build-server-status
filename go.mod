@@ -5,7 +5,7 @@ go 1.18
 require github.com/eclipse/paho.mqtt.golang v1.4.1
 
 require (
-	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/rs/zerolog v1.27.0 // indirect
