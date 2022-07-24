@@ -8,12 +8,18 @@
     <link rel="stylesheet" href="css/grids-responsive-min.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="shortcut icon" href="https://alpinelinux.org/alpine-logo.ico">
-	<script src="js/mqttws31.js"></script>
-	<script src="js/minified.js"></script>
-	<script src="js/sortable.js"></script>
-	<script src="js/script.js"></script>
 </head>
 <body>
+    <template id="template-table-row">
+        <tr>
+            <td class="nr"></td>
+            <td class="host"></td>
+            <td class="msgs_container"><div class="msgs"></div></td>
+            <td class="errmsgs_container"><div class="errmsgs"></div></td>
+            <td class="prgr_built"><progress value="0" max="0"></progress> <span class="progress-value"></span></td>
+            <td class="prgr_total"><progress value="0" max="0"></progress> <span class="progress-value"></span></td>
+        </tr>
+    </template>
     <div id="wrapper">
         <header class="pure-g" id="header">
             <div class="pure-u-1 pure-u-lg-4-24">
@@ -44,27 +50,28 @@
             </div>
         </header>
         <main>
-			<h1>Alpine Linux build status</h1>
-			<div class="overflow-table">
-				<table id="builds" class="pure-table pure-table-striped sortable">
-					<thead>
-						<tr>
-							<th>#</th>
-							<th id="host">host</th>
-							<th>activity</th>
-							<th>last error</th>
-							<th>aport built</th>
-							<th>aport total</th>
-						</tr>
-					</thead>
-					<tbody id="servers">
-					</tbody>
-			</table>
-			</div>
-			<div id="mqtt_connect_status"></div>
-			<div id="mqtt_msgs"></div>
+            <h1>Alpine Linux build status</h1>
+            <div class="overflow-table">
+                <table id="builds" class="pure-table pure-table-striped sortable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th id="host">host</th>
+                            <th>activity</th>
+                            <th>last error</th>
+                            <th>aport built</th>
+                            <th>aport total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="servers">
+                    </tbody>
+            </table>
+            </div>
+            <div id="mqtt_connect_status"></div>
+            <div id="mqtt_msgs"></div>
         </main>
         <footer>© Copyright 2017 Alpine Linux Development Team all rights reserved | <a href="https://alpinelinux.org/privacy-policy.html">Privacy Policy</a></footer>
     </div>
+	<script src="js/build-server-status.js"></script>
 </body>
 </html>
