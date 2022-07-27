@@ -16,14 +16,19 @@ type BuildStatus struct {
 	error     *Message
 }
 
-func (bs *BuildStatus) addMsg(msg Message) {
+func (bs *BuildStatus) addMsg(msg Message) bool {
+	if len(bs.msgs) > 0 && bs.msgs[len(bs.msgs)-1] == msg {
+		return false
+	}
 	bs.msgs = append(bs.msgs, msg)
 
 	if len(bs.msgs) <= bs.maxMsgLen {
-		return
+		return true
 	}
 
 	bs.msgs = bs.msgs[len(bs.msgs)-bs.maxMsgLen:]
+
+	return true
 }
 
 type BuildStatusPublisher struct {
@@ -62,7 +67,10 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 			case BuildErrorMessage:
 				buildStatus.error = &msg
 			default:
-				b.buildStatus[msg.BuilderName()].addMsg(msg)
+				if !buildStatus.addMsg(msg) {
+					continue
+				}
+				log.Trace().Msgf("builder %s, %d messages", msg.BuilderName(), len(buildStatus.msgs))
 			}
 
 			log.Debug().Msgf("%T{%s}", msg, msg.Get())
