@@ -23,15 +23,10 @@ func Run(ctx context.Context, client mqtt.Client) error {
 		return fmt.Errorf("error subscribing to topic: %w", t.Error())
 	}
 
-	ctxPublisher, cancelPublisher := context.WithCancel(ctx)
-	defer cancelPublisher()
-
 	publisher := NewBuildStatusPublisher(msgs)
-	go publisher.PublishBuildStatus(ctxPublisher)
 
 	log.Info().Msg("Server started")
 
-	<-ctx.Done()
-
+	publisher.ListenWebsocket(ctx)
 	return ctx.Err()
 }

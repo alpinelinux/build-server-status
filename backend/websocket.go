@@ -33,23 +33,22 @@ func (bs *BuildStatus) addMsg(msg Message) bool {
 
 type BuildStatusPublisher struct {
 	msgChan     chan Message
+	connChan    chan Connection
 	buildStatus map[string]*BuildStatus
 	subscribers map[string]*websocket.Conn
 }
 
 func NewBuildStatusPublisher(msgChan chan Message) *BuildStatusPublisher {
+	connChan := make(chan Connection, 16)
 	return &BuildStatusPublisher{
 		msgChan:     msgChan,
+		connChan:    connChan,
 		buildStatus: map[string]*BuildStatus{},
 		subscribers: map[string]*websocket.Conn{},
 	}
 }
 
 func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
-	newConnections := make(chan *websocket.Conn, 32)
-
-	go b.listenWebsocket(newConnections)
-
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
@@ -83,7 +82,7 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 					delete(b.subscribers, conn.RemoteAddr().String())
 				}
 			}
-		case conn := <-newConnections:
+		case conn := <-b.connChan:
 			log.Info().Msgf("Received connection from: %s", conn.RemoteAddr())
 			b.subscribers[conn.RemoteAddr().String()] = conn
 			for _, buildstatus := range b.buildStatus {
@@ -114,7 +113,9 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 	}
 }
 
-func (b *BuildStatusPublisher) listenWebsocket(connections chan *websocket.Conn) {
+func (b *BuildStatusPublisher) ListenWebsocket(ctx context.Context) {
+	go b.PublishBuildStatus(ctx)
+
 	upgrader := websocket.Upgrader{}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -126,7 +127,7 @@ func (b *BuildStatusPublisher) listenWebsocket(connections chan *websocket.Conn)
 			log.Error().Msg(fmt.Sprintf("Connection to %s closed: %s (%d)", conn.RemoteAddr(), text, code))
 			return nil
 		})
-		connections <- conn
+		b.connChan <- conn
 	})
 	log.Info().Msgf("Listening on 0.0.0.0:8080")
 	err := http.ListenAndServe("0.0.0.0:8080", nil)
