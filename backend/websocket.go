@@ -93,7 +93,8 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 		case conn := <-b.connChan:
 			log.Info().Msgf("Received connection from: %s", conn.RemoteAddr())
 			b.subscribers[conn.RemoteAddr().String()] = conn
-			for _, buildstatus := range b.buildStatus {
+			for name, buildstatus := range b.buildStatus {
+				log.Debug().Msgf("Sending %d messages for builder %s to subscriber %s", len(buildstatus.msgs), name, conn.RemoteAddr())
 				for _, msg := range buildstatus.msgs {
 					log.Trace().Msgf("Sending msg: %T{%s}", msg, msg.Get())
 					conn.WriteJSON(msg)
@@ -112,6 +113,7 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 				}
 			}
 		case <-ctx.Done():
+			log.Info().Msg("Shutting down")
 			for _, conn := range b.subscribers {
 				conn.Close()
 			}
@@ -120,7 +122,9 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 
 		// Used for testing purpose only
 		if b.stepChan != nil {
+			log.Debug().Msg("Waiting for tick")
 			<-b.stepChan
+			log.Debug().Msg("Received tick")
 		}
 	}
 }
