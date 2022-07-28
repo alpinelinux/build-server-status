@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -10,6 +11,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type Connection interface {
+	WriteJSON(v any) error
+	WriteControl(messageType int, data []byte, deadline time.Time) error
+	RemoteAddr() net.Addr
+	Close() error
+}
 type BuildStatus struct {
 	maxMsgLen int
 	msgs      []Message
@@ -35,7 +42,7 @@ type BuildStatusPublisher struct {
 	msgChan     chan Message
 	connChan    chan Connection
 	buildStatus map[string]*BuildStatus
-	subscribers map[string]*websocket.Conn
+	subscribers map[string]Connection
 }
 
 func NewBuildStatusPublisher(msgChan chan Message) *BuildStatusPublisher {
@@ -44,7 +51,7 @@ func NewBuildStatusPublisher(msgChan chan Message) *BuildStatusPublisher {
 		msgChan:     msgChan,
 		connChan:    connChan,
 		buildStatus: map[string]*BuildStatus{},
-		subscribers: map[string]*websocket.Conn{},
+		subscribers: map[string]Connection{},
 	}
 }
 
