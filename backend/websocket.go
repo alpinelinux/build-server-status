@@ -43,6 +43,7 @@ type BuildStatusPublisher struct {
 	connChan    chan Connection
 	buildStatus map[string]*BuildStatus
 	subscribers map[string]Connection
+	stepChan    chan struct{}
 }
 
 func NewBuildStatusPublisher(msgChan chan Message) *BuildStatusPublisher {
@@ -116,6 +117,10 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 			}
 			return
 		}
+
+		// Used for testing purpose only
+		if b.stepChan != nil {
+			<-b.stepChan
 		}
 	}
 }
@@ -139,4 +144,10 @@ func (b *BuildStatusPublisher) ListenWebsocket(ctx context.Context) {
 	log.Info().Msgf("Listening on 0.0.0.0:8080")
 	err := http.ListenAndServe("0.0.0.0:8080", nil)
 	log.Error().Err(err).Msg("http listener failed")
+}
+
+func (b *BuildStatusPublisher) makeStep() {
+	if b.stepChan != nil {
+		b.stepChan <- struct{}{}
+	}
 }
