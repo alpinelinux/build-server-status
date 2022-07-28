@@ -73,6 +73,10 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 			switch msg.(type) {
 			case BuildErrorMessage:
 				buildStatus.error = &msg
+			case IdleMessage:
+				log.Debug().Msgf("Received idle for %s, resetting state", msg.BuilderName())
+				buildStatus.msgs = []Message{msg}
+				buildStatus.error = nil
 			default:
 				if !buildStatus.addMsg(msg) {
 					continue

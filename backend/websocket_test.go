@@ -146,6 +146,36 @@ func TestPublisherSendsErrorMessageWhenThreeMessagesReceived(t *testing.T) {
 	require.NotNil(errMsg, "No error message found in received messages")
 }
 
+func TestPublisherResetsBuilderStateAfterIdle(t *testing.T) {
+	require := require.New(t)
+
+	publisher, channels, cancel := createPublisher()
+
+	channels.msg <- MessageFromString("build/BuilderA/errors", `{"reponame": "community", "pkgname": "packageA", "hostname": "BuilderA"}`)
+	publisher.makeStep()
+
+	msgsBuilderA := []Message{
+		MessageFromString("build/BuilderA", "upgrading system"),
+		MessageFromString("build/BuilderA", "uploading packages to community"),
+		MessageFromString("build/BuilderA", "idle"),
+	}
+
+	for _, msg := range msgsBuilderA {
+		channels.msg <- msg
+		publisher.makeStep()
+	}
+
+	publisher.connChan <- MockConnection{Sent: channels.sent}
+	publisher.makeStep()
+
+	msgs := drainChannel(channels.sent)
+
+	cancel()
+
+	require.Lenf(msgs, 1, "Expected only an idle message, received %d messages", len(msgs))
+
+}
+
 func createPublisher() (*BuildStatusPublisher, *channels, context.CancelFunc) {
 	zerolog.SetGlobalLevel(zerolog.FatalLevel)
 	channels := channels{

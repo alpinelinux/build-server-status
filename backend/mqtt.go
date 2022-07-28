@@ -84,6 +84,10 @@ func MessageFromString(topic, msg string) Message {
 		}
 
 		return m
+	case msg == "idle":
+		m := IdleMessage{GenericMessage: genericMessage}
+		m.MsgType = "idle"
+		return m
 	default:
 		return genericMessage
 	}
@@ -115,6 +119,10 @@ type BuildErrorMessage struct {
 	Pkgname  string
 	Logurl   string
 	Hostname string
+}
+
+type IdleMessage struct {
+	GenericMessage
 }
 
 func MessageHandler(ctx context.Context, msgs chan Message) mqtt.MessageHandler {
