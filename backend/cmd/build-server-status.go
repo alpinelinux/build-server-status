@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -15,7 +16,7 @@ func main() {
 	opts := mqtt.
 		NewClientOptions().
 		AddBroker("tcp://msg.alpinelinux.org:1883").
-		SetClientID("build-server-status-123").
+		SetClientID(fmt.Sprintf("build-server-status-%d", time.Now().UnixMicro())).
 		SetAutoReconnect(true)
 
 	client := mqtt.NewClient(
