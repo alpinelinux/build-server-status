@@ -9,7 +9,8 @@ const maxActivityCount = 3;
 
 class BuildServerStatus {
     constructor() {
-        this.wsEndpoint = `ws://${window.location.host}/ws/`;
+        const protocol = (window.location.protocol == "http:" ? "ws:" : "wss:")
+        this.wsEndpoint = `${protocol}//${window.location.host}/ws/`;
         this.connect(this.wsEndpoint);
         this.subscribers = [];
 
