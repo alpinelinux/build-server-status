@@ -1,7 +1,15 @@
-FROM scratch
+FROM alpinelinux/golang:edge as builder
 
-COPY build-server-status /build-server-status
+COPY --chown=build ./ /src
+
+WORKDIR /src
+
+RUN redo build-server-status
+
+FROM alpine:edge
+
+COPY --from=builder /src/build-server-status /build-server-status
 
 EXPOSE 8080
 
-ENTRYPOINT ["/build-server-status"]
+CMD ["/build-server-status"]
