@@ -109,6 +109,27 @@ func TestPublisherSendsError(t *testing.T) {
 	assert.IsType(BuildErrorMessage{}, msgs[0])
 }
 
+func TestPublisherSendsEmptyError(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	publisher, channels, cancel := createPublisher()
+
+	channels.msg <- MessageFromString("build/BuilderA/errors", "")
+	publisher.makeStep()
+
+	publisher.connChan <- MockConnection{Sent: channels.sent}
+	publisher.makeStep()
+
+	msgs := drainChannel(channels.sent)
+
+	cancel()
+
+	require.Len(msgs, 1)
+	assert.IsType(BuildErrorMessage{}, msgs[0])
+	assert.Equal("BuilderA: ", msgs[0].Get())
+}
+
 func TestPublisherSendsErrorMessageWhenThreeMessagesReceived(t *testing.T) {
 	require := require.New(t)
 

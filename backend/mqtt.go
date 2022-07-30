@@ -65,10 +65,12 @@ func MessageFromString(topic, msg string) Message {
 		m := BuildErrorMessage{
 			GenericMessage: genericMessage,
 		}
-		err := json.Unmarshal([]byte(msg), &m)
-		if err != nil {
-			log.Error().Err(err)
-			return genericMessage
+		if msg != "" {
+			err := json.Unmarshal([]byte(msg), &m)
+			if err != nil {
+				log.Error().Err(err).Msg("")
+				return genericMessage
+			}
 		}
 
 		return m
