@@ -89,10 +89,24 @@ class BuildServerInterface {
         let servers = [].slice.call(serversElem.children);
 
         servers.sort(function(a, b) {
-            let serverA = a.getElementsByClassName('host')[0].innerText;
-            let serverB = b.getElementsByClassName('host')[0].innerText;
+            const splitServer = function(name) {
+                const parts = name.split("-");
+                const len = parts.length;
 
-            return collator.compare(serverA, serverB);
+                return [parts.slice(0, len - 1), parts.slice(len - 1)]
+            }
+            const serverA = a.getElementsByClassName('host')[0].innerText;
+            const serverB = b.getElementsByClassName('host')[0].innerText;
+
+            let [serverAVer, serverAArch] = splitServer(serverA);
+            let [serverBVer, serverBArch] = splitServer(serverB);
+
+            let comp = collator.compare(serverAVer, serverBVer);
+            if (comp == 0) {
+                return collator.compare(serverAArch, serverBArch);
+            } else {
+                return -1 * comp; // Invert order
+            }
         });
 
         let idx=1;
