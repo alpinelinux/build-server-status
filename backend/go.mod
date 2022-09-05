@@ -6,6 +6,7 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.4.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/rs/zerolog v1.27.0
+	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.0
 )
 
