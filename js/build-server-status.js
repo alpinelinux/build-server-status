@@ -194,7 +194,7 @@ class Builder {
 
             this.elem.getElementsByClassName(cls)[0]
                 .getElementsByClassName('progress-value')[0]
-                .innerText = `${percentage}%`;
+                .innerText = `\n${progress.Current} / ${progress.Total} (${percentage}%)`;
         }
     }
 
