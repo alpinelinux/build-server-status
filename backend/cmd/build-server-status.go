@@ -40,6 +40,7 @@ func main() {
 		AddBroker("tcp://msg.alpinelinux.org:1883").
 		SetClientID(fmt.Sprintf("build-server-status-%d", time.Now().UnixMicro())).
 		SetAutoReconnect(true).
+		SetCleanSession(false).
 		SetMaxReconnectInterval(1 * time.Minute).
 		SetOnConnectHandler(func(c mqtt.Client) {
 			log.Info().Msg("Connected to broker")
