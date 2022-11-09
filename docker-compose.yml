@@ -1,0 +1,18 @@
+version: "3.7"
+
+services:
+  backend:
+    build:
+      context: backend
+    image: alpinelinux/build-server-status
+    ports:
+      - 8033:8080
+  frontend:
+    image: nginx:mainline-alpine
+    volumes:
+      - ./index.html:/var/www/index.html
+      - ./js:/var/www/js
+      - ./css:/var/www/css
+      - ./nginx_default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - 8032:80
