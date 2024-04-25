@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "regexManagers:dockerfileVersions"
+  ],
+  "semanticCommits": "disabled",
+  "commitMessagePrefix": "deps:",
+  "commitMessageAction": "update",
+  "prConcurrentLimit": 2,
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "golang"
+      ],
+      "enabled": false
+    }
+  ]
+}
