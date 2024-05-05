@@ -1,0 +1,9 @@
+stages:
+  - build
+
+build-backend:
+  stage: build
+  image: registry.alpinelinux.org/alpine/infra/docker/golang:latest
+  script:
+    - redo backend/build-server-status
+  tags: [docker-alpine, x86_64]
