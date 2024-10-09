@@ -8,9 +8,8 @@ include:
     ref: master
     file: 'exec/docker-image-x86_64.yml'
 
-.build-image:
-  variables:
-    SUBDIR: backend
+variables:
+  SUBDIR: backend
 
 build-backend:
   stage: verify
