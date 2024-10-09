@@ -1,5 +1,3 @@
-version: "3.7"
-
 services:
   backend:
     image: registry.alpinelinux.org/alpine/infra/build-server-status:latest
