@@ -1,10 +1,6 @@
-version: "3.7"
-
 services:
   backend:
-    build:
-      context: backend
-    image: alpinelinux/build-server-status
+    image: registry.alpinelinux.org/alpine/infra/build-server-status:latest
     ports:
       - 8033:8080
   frontend:

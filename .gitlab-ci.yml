@@ -1,8 +1,19 @@
 stages:
+  - verify
   - build
+  - publish
+
+include:
+  - project: 'alpine/infra/gitlab-ci-templates'
+    ref: master
+    file: 'exec/docker-image-x86_64.yml'
+
+.build-image:
+  variables:
+    SUBDIR: backend
 
 build-backend:
-  stage: build
+  stage: verify
   image: registry.alpinelinux.org/alpine/infra/docker/golang:latest
   script:
     - redo backend/build-server-status
