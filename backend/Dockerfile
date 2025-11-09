@@ -1,4 +1,4 @@
-FROM alpinelinux/golang:edge as builder
+FROM registry.alpinelinux.org/alpine/infra/docker/golang:3.22 AS builder
 
 COPY --chown=build ./ /src
 
