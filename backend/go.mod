@@ -7,7 +7,7 @@ toolchain go1.24.9
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/rs/zerolog v1.33.0
+	github.com/rs/zerolog v1.34.0
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.10.0
 )
