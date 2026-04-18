@@ -34,10 +34,14 @@ func main() {
 	})
 
 	log.Info().Msgf("Logging with loglevel %s", logLevel)
+	broker := os.Getenv("BSS_MQTT_BROKER")
+	if broker == "" {
+		broker = "tcp://msg.alpinelinux.org:1883"
+	}
 
 	opts := mqtt.
 		NewClientOptions().
-		AddBroker("tcp://msg.alpinelinux.org:1883").
+		AddBroker(broker).
 		SetClientID(fmt.Sprintf("build-server-status-%d", time.Now().UnixMicro())).
 		SetAutoReconnect(true).
 		SetCleanSession(false).

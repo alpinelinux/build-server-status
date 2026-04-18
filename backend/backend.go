@@ -9,11 +9,11 @@ import (
 )
 
 func Run(ctx context.Context, client mqtt.Client) error {
+	msgs := make(chan Message, 16)
+
 	if t := client.Connect(); t.Wait() && t.Error() != nil {
 		return fmt.Errorf("error connecting to broker: %w", t.Error())
 	}
-
-	msgs := make(chan Message, 16)
 
 	if t := client.Subscribe("build/#", 0,
 		MessageHandler(

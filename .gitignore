@@ -1,3 +1,6 @@
 buildlogs
 build-server-status
 .task/
+node_modules/
+playwright-report/
+test-results/
