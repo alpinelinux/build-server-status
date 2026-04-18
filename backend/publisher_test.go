@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/netip"
 	"testing"
-	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -233,10 +232,6 @@ type mockSubscriber struct {
 
 func (c mockSubscriber) WriteJSON(v any) error {
 	c.sent <- v.(Message)
-	return nil
-}
-
-func (c mockSubscriber) WriteControl(messageType int, data []byte, deadline time.Time) error {
 	return nil
 }
 

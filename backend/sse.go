@@ -6,18 +6,16 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 )
 
 type Connection interface {
 	WriteJSON(v any) error
-	WriteControl(messageType int, data []byte, deadline time.Time) error
 	RemoteAddr() net.Addr
 	Close() error
 }
+
 type BuildStatus struct {
 	maxMsgLen int
 	msgs      []Message
@@ -58,9 +56,6 @@ func NewBuildStatusPublisher(msgChan chan Message) *BuildStatusPublisher {
 }
 
 func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-
 	for {
 		select {
 		case msg := <-b.msgChan:
@@ -109,14 +104,6 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 					conn.WriteJSON(*buildstatus.error)
 				}
 			}
-		case <-ticker.C:
-			for _, conn := range b.subscribers {
-				err := conn.WriteControl(websocket.PingMessage, []byte("ping"), time.Now().Add(1*time.Second))
-				if err != nil {
-					log.Error().Err(err).Msg("Removing subscriber")
-					delete(b.subscribers, conn.RemoteAddr().String())
-				}
-			}
 		case <-ctx.Done():
 			log.Info().Msg("Shutting down")
 			for _, conn := range b.subscribers {
@@ -131,22 +118,6 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 			<-b.stepChan
 			log.Debug().Msg("Received tick")
 		}
-	}
-}
-
-func (b *BuildStatusPublisher) websocketHandler() http.HandlerFunc {
-	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	return func(w http.ResponseWriter, r *http.Request) {
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Error().Err(err).Msg("")
-			return
-		}
-		conn.SetCloseHandler(func(code int, text string) error {
-			log.Error().Msg(fmt.Sprintf("Connection to %s closed: %s (%d)", conn.RemoteAddr(), text, code))
-			return nil
-		})
-		b.connChan <- conn
 	}
 }
 
@@ -177,7 +148,6 @@ func (b *BuildStatusPublisher) ListenHTTP(ctx context.Context) {
 	go b.PublishBuildStatus(ctx)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", b.websocketHandler())
 	mux.HandleFunc("/events", b.sseHandler())
 
 	log.Info().Msgf("Listening on 0.0.0.0:8080")
@@ -207,10 +177,6 @@ func (c *sseConnection) WriteJSON(v any) error {
 		return err
 	}
 	c.flusher.Flush()
-	return nil
-}
-
-func (c *sseConnection) WriteControl(messageType int, data []byte, deadline time.Time) error {
 	return nil
 }
 
