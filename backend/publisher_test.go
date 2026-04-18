@@ -7,13 +7,12 @@ import (
 	"testing"
 	"time"
 
-	// "github.com/stretchr/testify/assert"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type channels struct {
+type publisherChannels struct {
 	msg  chan Message
 	sent chan Message
 }
@@ -22,9 +21,9 @@ func TestPublisherForwardsSingleMessage(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	publisher, channels, cancel := createPublisher()
+	publisher, channels, cancel := createPublisher(t)
 
-	publisher.connChan <- MockConnection{Sent: channels.sent}
+	publisher.connChan <- mockSubscriber{sent: channels.sent}
 	publisher.makeStep()
 
 	channels.msg <- MessageFromString("build/message-builder", "this is a message")
@@ -32,7 +31,7 @@ func TestPublisherForwardsSingleMessage(t *testing.T) {
 
 	cancel()
 
-	messages := drainChannel(channels.sent)
+	messages := drainMessages(channels.sent)
 	require.Len(messages, 1)
 	assert.Equal("message-builder: this is a message", messages[0].Get())
 	assert.Equal("message-builder", messages[0].BuilderName())
@@ -42,7 +41,7 @@ func TestPublisherSendsLastThreeMessagesPerBuilder(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	publisher, channels, cancel := createPublisher()
+	publisher, channels, cancel := createPublisher(t)
 
 	msgsBuilderA := []Message{
 		MessageFromString("build/BuilderA", "pulling git"),
@@ -68,11 +67,11 @@ func TestPublisherSendsLastThreeMessagesPerBuilder(t *testing.T) {
 		publisher.makeStep()
 	}
 
-	publisher.connChan <- MockConnection{Sent: channels.sent}
+	publisher.connChan <- mockSubscriber{sent: channels.sent}
 	publisher.makeStep()
 
 	receivedMessagesPerBuilder := map[string][]Message{}
-	for _, msg := range drainChannel(channels.sent) {
+	for _, msg := range drainMessages(channels.sent) {
 		receivedMessagesPerBuilder[msg.BuilderName()] = append(receivedMessagesPerBuilder[msg.BuilderName()], msg)
 	}
 
@@ -93,15 +92,15 @@ func TestPublisherSendsError(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	publisher, channels, cancel := createPublisher()
+	publisher, channels, cancel := createPublisher(t)
 
 	channels.msg <- MessageFromString("build/BuilderA/errors", `{"reponame": "community", "pkgname": "packageA", "hostname": "builderA"}`)
 	publisher.makeStep()
 
-	publisher.connChan <- MockConnection{Sent: channels.sent}
+	publisher.connChan <- mockSubscriber{sent: channels.sent}
 	publisher.makeStep()
 
-	msgs := drainChannel(channels.sent)
+	msgs := drainMessages(channels.sent)
 
 	cancel()
 
@@ -113,15 +112,15 @@ func TestPublisherSendsEmptyError(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	publisher, channels, cancel := createPublisher()
+	publisher, channels, cancel := createPublisher(t)
 
 	channels.msg <- MessageFromString("build/BuilderA/errors", "")
 	publisher.makeStep()
 
-	publisher.connChan <- MockConnection{Sent: channels.sent}
+	publisher.connChan <- mockSubscriber{sent: channels.sent}
 	publisher.makeStep()
 
-	msgs := drainChannel(channels.sent)
+	msgs := drainMessages(channels.sent)
 
 	cancel()
 
@@ -133,7 +132,7 @@ func TestPublisherSendsEmptyError(t *testing.T) {
 func TestPublisherSendsErrorMessageWhenThreeMessagesReceived(t *testing.T) {
 	require := require.New(t)
 
-	publisher, channels, cancel := createPublisher()
+	publisher, channels, cancel := createPublisher(t)
 
 	channels.msg <- MessageFromString("build/BuilderA/errors", `{"reponame": "community", "pkgname": "packageA", "hostname": "builderA"}`)
 	publisher.makeStep()
@@ -149,10 +148,10 @@ func TestPublisherSendsErrorMessageWhenThreeMessagesReceived(t *testing.T) {
 		publisher.makeStep()
 	}
 
-	publisher.connChan <- MockConnection{Sent: channels.sent}
+	publisher.connChan <- mockSubscriber{sent: channels.sent}
 	publisher.makeStep()
 
-	msgs := drainChannel(channels.sent)
+	msgs := drainMessages(channels.sent)
 
 	cancel()
 
@@ -170,7 +169,7 @@ func TestPublisherSendsErrorMessageWhenThreeMessagesReceived(t *testing.T) {
 func TestPublisherResetsBuilderStateAfterIdle(t *testing.T) {
 	require := require.New(t)
 
-	publisher, channels, cancel := createPublisher()
+	publisher, channels, cancel := createPublisher(t)
 
 	channels.msg <- MessageFromString("build/BuilderA/errors", `{"reponame": "community", "pkgname": "packageA", "hostname": "BuilderA"}`)
 	publisher.makeStep()
@@ -186,20 +185,21 @@ func TestPublisherResetsBuilderStateAfterIdle(t *testing.T) {
 		publisher.makeStep()
 	}
 
-	publisher.connChan <- MockConnection{Sent: channels.sent}
+	publisher.connChan <- mockSubscriber{sent: channels.sent}
 	publisher.makeStep()
 
-	msgs := drainChannel(channels.sent)
+	msgs := drainMessages(channels.sent)
 
 	cancel()
 
 	require.Lenf(msgs, 1, "Expected only an idle message, received %d messages", len(msgs))
-
 }
 
-func createPublisher() (*BuildStatusPublisher, *channels, context.CancelFunc) {
+func createPublisher(t *testing.T) (*BuildStatusPublisher, *publisherChannels, context.CancelFunc) {
+	t.Helper()
+
 	zerolog.SetGlobalLevel(zerolog.FatalLevel)
-	channels := channels{
+	channels := publisherChannels{
 		msg:  make(chan Message, 1),
 		sent: make(chan Message, 32),
 	}
@@ -213,8 +213,7 @@ func createPublisher() (*BuildStatusPublisher, *channels, context.CancelFunc) {
 	return publisher, &channels, cancel
 }
 
-func drainChannel(c chan Message) (msgs []Message) {
-
+func drainMessages(c chan Message) (msgs []Message) {
 loop:
 	for {
 		select {
@@ -228,28 +227,24 @@ loop:
 	return
 }
 
-func getMessages(channels *channels) map[string][]Message {
-	return map[string][]Message{}
+type mockSubscriber struct {
+	sent chan Message
 }
 
-type MockConnection struct {
-	Sent chan Message
-}
-
-func (c MockConnection) WriteJSON(v any) error {
-	c.Sent <- v.(Message)
+func (c mockSubscriber) WriteJSON(v any) error {
+	c.sent <- v.(Message)
 	return nil
 }
 
-func (c MockConnection) WriteControl(messageType int, data []byte, deadline time.Time) error {
+func (c mockSubscriber) WriteControl(messageType int, data []byte, deadline time.Time) error {
 	return nil
 }
 
-func (c MockConnection) RemoteAddr() net.Addr {
+func (c mockSubscriber) RemoteAddr() net.Addr {
 	return net.TCPAddrFromAddrPort(netip.MustParseAddrPort("192.0.2.0:12345"))
 }
 
-func (c MockConnection) Close() error {
-	close(c.Sent)
+func (c mockSubscriber) Close() error {
+	close(c.sent)
 	return nil
 }
