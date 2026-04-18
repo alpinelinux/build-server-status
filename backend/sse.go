@@ -40,6 +40,7 @@ func (bs *BuildStatus) addMsg(msg Message) bool {
 type BuildStatusPublisher struct {
 	msgChan     chan Message
 	connChan    chan Connection
+	connCloseCh chan string
 	buildStatus map[string]*BuildStatus
 	subscribers map[string]Connection
 	stepChan    chan struct{}
@@ -50,6 +51,7 @@ func NewBuildStatusPublisher(msgChan chan Message) *BuildStatusPublisher {
 	return &BuildStatusPublisher{
 		msgChan:     msgChan,
 		connChan:    connChan,
+		connCloseCh: make(chan string, 16),
 		buildStatus: map[string]*BuildStatus{},
 		subscribers: map[string]Connection{},
 	}
@@ -104,6 +106,9 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 					conn.WriteJSON(*buildstatus.error)
 				}
 			}
+		case addr := <-b.connCloseCh:
+			log.Info().Msgf("Removing connection: %s", addr)
+			delete(b.subscribers, addr)
 		case <-ctx.Done():
 			log.Info().Msg("Shutting down")
 			for _, conn := range b.subscribers {
@@ -138,9 +143,15 @@ func (b *BuildStatusPublisher) sseHandler() http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
+		if _, err := fmt.Fprintf(w, ": connected\n\n"); err != nil {
+			log.Error().Err(err).Msg("failed to initialize sse stream")
+			return
+		}
+		flusher.Flush()
 
 		b.connChan <- conn
 		<-r.Context().Done()
+		b.connCloseCh <- conn.RemoteAddr().String()
 	}
 }
 
