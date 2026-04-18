@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -133,11 +134,9 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 	}
 }
 
-func (b *BuildStatusPublisher) ListenWebsocket(ctx context.Context) {
-	go b.PublishBuildStatus(ctx)
-
+func (b *BuildStatusPublisher) websocketHandler() http.HandlerFunc {
 	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Error().Err(err).Msg("")
@@ -148,9 +147,41 @@ func (b *BuildStatusPublisher) ListenWebsocket(ctx context.Context) {
 			return nil
 		})
 		b.connChan <- conn
-	})
+	}
+}
+
+func (b *BuildStatusPublisher) sseHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		conn := &sseConnection{
+			writer:  w,
+			flusher: flusher,
+			remote:  remoteAddr(r),
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+
+		b.connChan <- conn
+		<-r.Context().Done()
+	}
+}
+
+func (b *BuildStatusPublisher) ListenHTTP(ctx context.Context) {
+	go b.PublishBuildStatus(ctx)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", b.websocketHandler())
+	mux.HandleFunc("/events", b.sseHandler())
+
 	log.Info().Msgf("Listening on 0.0.0.0:8080")
-	err := http.ListenAndServe("0.0.0.0:8080", nil)
+	err := http.ListenAndServe("0.0.0.0:8080", mux)
 	log.Error().Err(err).Msg("http listener failed")
 }
 
@@ -158,4 +189,44 @@ func (b *BuildStatusPublisher) makeStep() {
 	if b.stepChan != nil {
 		b.stepChan <- struct{}{}
 	}
+}
+
+type sseConnection struct {
+	writer  http.ResponseWriter
+	flusher http.Flusher
+	remote  net.Addr
+}
+
+func (c *sseConnection) WriteJSON(v any) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(c.writer, "data: %s\n\n", data); err != nil {
+		return err
+	}
+	c.flusher.Flush()
+	return nil
+}
+
+func (c *sseConnection) WriteControl(messageType int, data []byte, deadline time.Time) error {
+	return nil
+}
+
+func (c *sseConnection) RemoteAddr() net.Addr {
+	return c.remote
+}
+
+func (c *sseConnection) Close() error {
+	return nil
+}
+
+func remoteAddr(r *http.Request) net.Addr {
+	addr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
+	if err == nil {
+		return addr
+	}
+
+	return &net.TCPAddr{}
 }

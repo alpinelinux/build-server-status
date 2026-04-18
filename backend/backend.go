@@ -27,6 +27,6 @@ func Run(ctx context.Context, client mqtt.Client) error {
 
 	log.Info().Msg("Server started")
 
-	publisher.ListenWebsocket(ctx)
+	publisher.ListenHTTP(ctx)
 	return ctx.Err()
 }
