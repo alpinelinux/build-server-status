@@ -9,9 +9,7 @@ const maxActivityCount = 3;
 
 class BuildServerStatus {
     constructor() {
-        const protocol = (window.location.protocol == "http:" ? "ws:" : "wss:")
-        this.wsEndpoint = `${protocol}//${window.location.host}/ws/`;
-        this.connect(this.wsEndpoint);
+        this.eventEndpoint = '/events';
         this.subscribers = [];
 
         const pre = document.createElement('p');
@@ -20,14 +18,15 @@ class BuildServerStatus {
         const mqtt_status = document.getElementById('mqtt_connect_status');
         mqtt_status.appendChild(pre);
         this.statusElem = pre;
+
+        this.connect(this.eventEndpoint);
     }
 
     connect(endpoint) {
-        const ws = new WebSocket(endpoint);
-        ws.addEventListener('open', data => this.open(data));
-        ws.addEventListener('close', data => this.close(data));
-        ws.addEventListener('message', data => this.msg(data));
-        ws.addEventListener('error', data => this.error(data));
+        const eventSource = new EventSource(endpoint);
+        eventSource.addEventListener('open', data => this.open(data));
+        eventSource.addEventListener('message', data => this.msg(data));
+        eventSource.addEventListener('error', data => this.error(data));
     }
 
     open(e) {
@@ -36,6 +35,7 @@ class BuildServerStatus {
 
     error(e) {
         console.error(e);
+        this.status("RECONNECTING", "red");
     }
 
     msg(e) {
@@ -44,11 +44,6 @@ class BuildServerStatus {
         for (const subscriber of this.subscribers) {
             subscriber(data);
         }
-    }
-
-    close(e) {
-        this.status("CONNECTION LOST", "red");
-        setTimeout(() => this.connect(this.wsEndpoint), 2000);
     }
 
     subscribe(callback) {
