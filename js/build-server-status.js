@@ -11,6 +11,7 @@ class BuildServerStatus {
     constructor() {
         this.eventEndpoint = '/events';
         this.subscribers = [];
+        this.mqttState = null;
 
         const pre = document.createElement('p');
         pre.style.wordWrap = "break-word";
@@ -18,6 +19,7 @@ class BuildServerStatus {
         const mqtt_status = document.getElementById('mqtt_connect_status');
         mqtt_status.appendChild(pre);
         this.statusElem = pre;
+        this.status("Connecting", "#666");
 
         this.connect(this.eventEndpoint);
     }
@@ -30,16 +32,19 @@ class BuildServerStatus {
     }
 
     open(e) {
-        this.status("CONNECTED", "green");
+        this.renderStatus();
     }
 
     error(e) {
         console.error(e);
-        this.status("RECONNECTING", "red");
+        this.status("Reconnecting", "red");
     }
 
     msg(e) {
         const data = JSON.parse(e.data);
+        if (data.MsgType === 'system') {
+            this.updateSystemStatus(data);
+        }
 
         for (const subscriber of this.subscribers) {
             subscriber(data);
@@ -54,6 +59,25 @@ class BuildServerStatus {
         this.statusElem.style.color = color;
         this.statusElem.innerText = msg;
     }
+
+    updateSystemStatus(msg) {
+        this.mqttState = msg.Status;
+        this.renderStatus();
+    }
+
+    renderStatus() {
+        switch (this.mqttState) {
+        case 'mqtt-connected':
+            this.status("Live", "green");
+            break;
+        case 'mqtt-disconnected':
+            this.status("Broker disconnected", "red");
+            break;
+        default:
+            this.status("Connecting", "#666");
+            break;
+        }
+    }
 }
 
 class BuildServerInterface {
@@ -64,6 +88,9 @@ class BuildServerInterface {
     }
 
     updateStatus(msg) {
+        if (msg.MsgType === 'system') {
+            return;
+        }
         if (msg.Msg == "") {
             return;
         }

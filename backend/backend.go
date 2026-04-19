@@ -8,9 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func Run(ctx context.Context, client mqtt.Client) error {
-	msgs := make(chan Message, 16)
-
+func Run(ctx context.Context, client mqtt.Client, msgs chan Message) error {
 	if t := client.Connect(); t.Wait() && t.Error() != nil {
 		return fmt.Errorf("error connecting to broker: %w", t.Error())
 	}

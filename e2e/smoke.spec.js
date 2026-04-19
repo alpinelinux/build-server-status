@@ -29,7 +29,7 @@ function publish(topic, payload) {
 test('renders a builder row for an MQTT event', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.locator('#mqtt_connect_status')).toContainText('CONNECTED');
+  await expect(page.locator('#mqtt_connect_status')).toContainText('Live');
 
   await publish('build/test-builder-x86_64', 'pulling git');
 

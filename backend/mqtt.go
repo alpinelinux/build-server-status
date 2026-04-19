@@ -127,6 +127,21 @@ type IdleMessage struct {
 	GenericMessage
 }
 
+type SystemMessage struct {
+	GenericMessage
+	Status string
+}
+
+func NewSystemMessage(status, msg string) SystemMessage {
+	return SystemMessage{
+		GenericMessage: GenericMessage{
+			MsgType: "system",
+			Msg:     msg,
+		},
+		Status: status,
+	}
+}
+
 func MessageHandler(ctx context.Context, msgs chan Message) mqtt.MessageHandler {
 	return func(c mqtt.Client, m mqtt.Message) {
 		log.Debug().
