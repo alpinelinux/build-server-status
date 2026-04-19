@@ -1,5 +1,9 @@
 const { test, expect } = require('@playwright/test');
 const mqtt = require('mqtt');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+
+const execFileAsync = promisify(execFile);
 
 function publish(topic, payload) {
   return new Promise((resolve, reject) => {
@@ -35,4 +39,22 @@ test('renders a builder row for an MQTT event', async ({ page }) => {
 
   await expect(page.locator('#servers')).toContainText('test-builder-x86_64');
   await expect(page.locator('#servers')).toContainText('pulling git');
+});
+
+test('shows broker disconnected when mosquitto stops', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.locator('#mqtt_connect_status')).toContainText('Live');
+
+  await execFileAsync('docker', [
+    'compose',
+    '-f',
+    'docker-compose.yml',
+    '-f',
+    'docker-compose.e2e.yml',
+    'stop',
+    'mosquitto'
+  ], { cwd: process.cwd() });
+
+  await expect(page.locator('#mqtt_connect_status')).toContainText('Broker disconnected');
 });
