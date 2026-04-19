@@ -1,6 +1,9 @@
 COMPOSE := docker compose -f docker-compose.yml -f docker-compose.e2e.yml
 
-.PHONY: e2e e2e-up e2e-deps e2e-test e2e-down
+.PHONY: check e2e e2e-up e2e-deps e2e-test e2e-down
+
+check:
+	cd backend && go test ./...
 
 e2e:
 	@set -e; \
