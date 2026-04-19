@@ -235,6 +235,10 @@ func (c mockSubscriber) WriteJSON(v any) error {
 	return nil
 }
 
+func (c mockSubscriber) WriteComment(text string) error {
+	return nil
+}
+
 func (c mockSubscriber) RemoteAddr() net.Addr {
 	return net.TCPAddrFromAddrPort(netip.MustParseAddrPort("192.0.2.0:12345"))
 }

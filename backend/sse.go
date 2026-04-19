@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
 
 type Connection interface {
 	WriteJSON(v any) error
+	WriteComment(text string) error
 	RemoteAddr() net.Addr
 	Close() error
 }
@@ -58,6 +60,9 @@ func NewBuildStatusPublisher(msgChan chan Message) *BuildStatusPublisher {
 }
 
 func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
+	pingTicker := time.NewTicker(15 * time.Second)
+	defer pingTicker.Stop()
+
 	for {
 		select {
 		case msg := <-b.msgChan:
@@ -109,6 +114,13 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 		case addr := <-b.connCloseCh:
 			log.Info().Msgf("Removing connection: %s", addr)
 			delete(b.subscribers, addr)
+		case <-pingTicker.C:
+			for _, conn := range b.subscribers {
+				if err := conn.WriteComment("ping"); err != nil {
+					log.Error().Err(err).Msg("Removing connection after ping failure")
+					delete(b.subscribers, conn.RemoteAddr().String())
+				}
+			}
 		case <-ctx.Done():
 			log.Info().Msg("Shutting down")
 			for _, conn := range b.subscribers {
@@ -185,6 +197,14 @@ func (c *sseConnection) WriteJSON(v any) error {
 	}
 
 	if _, err := fmt.Fprintf(c.writer, "data: %s\n\n", data); err != nil {
+		return err
+	}
+	c.flusher.Flush()
+	return nil
+}
+
+func (c *sseConnection) WriteComment(text string) error {
+	if _, err := fmt.Fprintf(c.writer, ": %s\n\n", text); err != nil {
 		return err
 	}
 	c.flusher.Flush()
