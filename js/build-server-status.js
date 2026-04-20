@@ -158,10 +158,12 @@ class Builder {
     constructor(parent, nr, builderName) {
         this.builderName = builderName;
         this.activity = [];
+        this.state = null;
 
         this.elem = rowTemplate.content.firstElementChild.cloneNode(true);
         this.elem.getElementsByClassName('nr')[0].innerText = nr;
-        this.elem.getElementsByClassName('host')[0].innerText = builderName;
+        this.hostElem = this.elem.getElementsByClassName('host')[0];
+        this.renderHost();
 
         parent.appendChild(this.elem);
     }
@@ -172,6 +174,10 @@ class Builder {
 
     update(msg) {
         switch(msg.MsgType) {
+        case "state":
+            this.state = msg.State;
+            this.renderHost();
+            break;
         case "progress":
             let pkgname = msg.PackageName.split("/")[1];
             this.activity.push({
@@ -203,6 +209,15 @@ class Builder {
             maxActivityCount + 1
         );
         this.updateActivity(this.activity);
+    }
+
+    renderHost() {
+        if (this.state == null || this.state === "") {
+            this.hostElem.innerHTML = this.builderName;
+            return;
+        }
+
+        this.hostElem.innerHTML = `${this.builderName} <span class="builder-state builder-state-${this.state}">${this.state}</span>`;
     }
 
     updateActivity(activity) {

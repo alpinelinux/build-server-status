@@ -191,11 +191,13 @@ func TestPublisherResetsBuilderStateAfterIdle(t *testing.T) {
 	require.Lenf(msgs, 1, "Expected only an idle message, received %d messages", len(msgs))
 }
 
-func TestPublisherRemovesBuilderWhenStatusAndErrorAreCleared(t *testing.T) {
+func TestPublisherDoesNotRemoveBuilderWhenStateStillExists(t *testing.T) {
 	require := require.New(t)
 
 	publisher, channels, cancel := createPublisher(t)
 
+	channels.msg <- MessageFromString("build/BuilderA/state", "online")
+	publisher.makeStep()
 	channels.msg <- MessageFromString("build/BuilderA", "pulling git")
 	publisher.makeStep()
 	channels.msg <- MessageFromString("build/BuilderA/errors", `{"reponame":"community","pkgname":"packageA","hostname":"BuilderA"}`)
@@ -208,6 +210,38 @@ func TestPublisherRemovesBuilderWhenStatusAndErrorAreCleared(t *testing.T) {
 	channels.msg <- MessageFromString("build/BuilderA", "")
 	publisher.makeStep()
 	channels.msg <- MessageFromString("build/BuilderA/errors", "")
+	publisher.makeStep()
+
+	msgs := drainMessages(channels.sent)
+	cancel()
+
+	require.Len(msgs, 1)
+	require.IsType(BuildErrorMessage{}, msgs[0])
+	require.Equal("BuilderA: ", msgs[0].Get())
+}
+
+func TestPublisherRemovesBuilderWhenStateIsCleared(t *testing.T) {
+	require := require.New(t)
+
+	publisher, channels, cancel := createPublisher(t)
+
+	channels.msg <- MessageFromString("build/BuilderA/state", "online")
+	publisher.makeStep()
+	channels.msg <- MessageFromString("build/BuilderA", "pulling git")
+	publisher.makeStep()
+	channels.msg <- MessageFromString("build/BuilderA/errors", `{"reponame":"community","pkgname":"packageA","hostname":"BuilderA"}`)
+	publisher.makeStep()
+
+	publisher.connChan <- mockSubscriber{sent: channels.sent}
+	publisher.makeStep()
+	drainMessages(channels.sent)
+
+	channels.msg <- MessageFromString("build/BuilderA", "")
+	publisher.makeStep()
+	channels.msg <- MessageFromString("build/BuilderA/errors", "")
+	publisher.makeStep()
+	drainMessages(channels.sent)
+	channels.msg <- MessageFromString("build/BuilderA/state", "")
 	publisher.makeStep()
 
 	msgs := drainMessages(channels.sent)

@@ -41,6 +41,18 @@ test('renders a builder row for an MQTT event', async ({ page }) => {
   await expect(page.locator('#servers')).toContainText('pulling git');
 });
 
+test('renders a builder state badge from MQTT', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.locator('#mqtt_connect_status')).toContainText('Live');
+
+  await publish('build/test-builder-state/state', 'lost');
+
+  const hostCell = page.locator('#servers .host').filter({ hasText: 'test-builder-state' });
+  await expect(hostCell).toContainText('test-builder-state');
+  await expect(hostCell).toContainText('lost');
+});
+
 test('shows broker disconnected when mosquitto stops', async ({ page }) => {
   await page.goto('/');
 

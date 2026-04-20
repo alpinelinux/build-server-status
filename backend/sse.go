@@ -21,7 +21,7 @@ type Connection interface {
 type BuildStatus struct {
 	maxMsgLen int
 	msgs      []Message
-	hasMsgs   bool
+	state     *BuildStateMessage
 	error     *Message
 }
 
@@ -29,7 +29,6 @@ func (bs *BuildStatus) addMsg(msg Message) bool {
 	if len(bs.msgs) > 0 && bs.msgs[len(bs.msgs)-1] == msg {
 		return false
 	}
-	bs.hasMsgs = true
 	bs.msgs = append(bs.msgs, msg)
 
 	if len(bs.msgs) <= bs.maxMsgLen {
@@ -43,11 +42,10 @@ func (bs *BuildStatus) addMsg(msg Message) bool {
 
 func (bs *BuildStatus) clearMsgs() {
 	bs.msgs = nil
-	bs.hasMsgs = false
 }
 
 func (bs *BuildStatus) isEmpty() bool {
-	return !bs.hasMsgs && bs.error == nil
+	return len(bs.msgs) == 0 && bs.state == nil && bs.error == nil
 }
 
 type BuildStatusPublisher struct {
@@ -83,7 +81,7 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 				}
 			}
 			buildStatus := b.buildStatus[msg.BuilderName()]
-			hadState := buildStatus.hasMsgs || buildStatus.error != nil
+			hadState := !buildStatus.isEmpty()
 
 			switch m := msg.(type) {
 			case BuildErrorMessage:
@@ -92,10 +90,20 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 				} else {
 					buildStatus.error = &msg
 				}
+			case BuildStateMessage:
+				if m.State == "" {
+					buildStatus.state = nil
+				} else {
+					if buildStatus.state != nil && *buildStatus.state == m {
+						b.waitStep()
+						continue
+					}
+					state := m
+					buildStatus.state = &state
+				}
 			case IdleMessage:
 				log.Debug().Msgf("Received idle for %s, resetting state", msg.BuilderName())
 				buildStatus.msgs = []Message{msg}
-				buildStatus.hasMsgs = true
 				buildStatus.error = nil
 			default:
 				if m, ok := msg.(GenericMessage); ok && m.Msg == "" {
@@ -138,6 +146,9 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 						Builder: msg.BuilderName(),
 					},
 				}
+			} else if m, ok := msg.(BuildStateMessage); ok && m.State == "" {
+				b.waitStep()
+				continue
 			}
 
 			log.Debug().Msgf("%T{%s}", msg, msg.Get())
@@ -158,6 +169,10 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 				for _, msg := range buildstatus.msgs {
 					log.Trace().Msgf("Sending msg: %T{%s}", msg, msg.Get())
 					conn.WriteJSON(msg)
+				}
+				if buildstatus.state != nil {
+					log.Debug().Msgf("Sending state message for %s", name)
+					conn.WriteJSON(*buildstatus.state)
 				}
 				if buildstatus.error != nil {
 					log.Debug().Msgf("Sending error message for %s", name)

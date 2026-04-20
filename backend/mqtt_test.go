@@ -49,7 +49,7 @@ func TestMessageFromStringParsesErrorTopicBySegments(t *testing.T) {
 func TestMessageFromStringKeepsBuilderNameForStateSubtopic(t *testing.T) {
 	msg := MessageFromString("build/BuilderA/state", "online")
 
-	require.IsType(t, GenericMessage{}, msg)
+	require.IsType(t, BuildStateMessage{}, msg)
 	assert.Equal(t, "BuilderA", msg.BuilderName())
-	assert.Equal(t, "online", msg.Get()[len("BuilderA: "):])
+	assert.Equal(t, "online", msg.(BuildStateMessage).State)
 }

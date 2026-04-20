@@ -78,6 +78,13 @@ func MessageFromString(topic, msg string) Message {
 		}
 
 		return m
+	case "state":
+		m := BuildStateMessage{
+			GenericMessage: genericMessage,
+			State:          msg,
+		}
+		m.MsgType = "state"
+		return m
 	default:
 		switch {
 		case progressMessagePattern.MatchString(msg):
@@ -141,6 +148,11 @@ type BuildErrorMessage struct {
 
 type IdleMessage struct {
 	GenericMessage
+}
+
+type BuildStateMessage struct {
+	GenericMessage
+	State string
 }
 
 type RemovedMessage struct {
