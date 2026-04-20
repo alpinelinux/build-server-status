@@ -91,6 +91,10 @@ class BuildServerInterface {
         if (msg.MsgType === 'system') {
             return;
         }
+        if (msg.MsgType === 'removed') {
+            this.removeBuilder(msg.Builder);
+            return;
+        }
         if (msg.Msg == "") {
             return;
         }
@@ -102,6 +106,17 @@ class BuildServerInterface {
 
         const builder = this.builders[msg.Builder];
         builder.update(msg);
+    }
+
+    removeBuilder(builderName) {
+        const builder = this.builders[builderName];
+        if (builder == undefined) {
+            return;
+        }
+
+        builder.remove();
+        delete this.builders[builderName];
+        this.sortTable();
     }
 
     sortTable() {
@@ -149,6 +164,10 @@ class Builder {
         this.elem.getElementsByClassName('host')[0].innerText = builderName;
 
         parent.appendChild(this.elem);
+    }
+
+    remove() {
+        this.elem.remove();
     }
 
     update(msg) {

@@ -21,6 +21,7 @@ type Connection interface {
 type BuildStatus struct {
 	maxMsgLen int
 	msgs      []Message
+	hasMsgs   bool
 	error     *Message
 }
 
@@ -28,6 +29,7 @@ func (bs *BuildStatus) addMsg(msg Message) bool {
 	if len(bs.msgs) > 0 && bs.msgs[len(bs.msgs)-1] == msg {
 		return false
 	}
+	bs.hasMsgs = true
 	bs.msgs = append(bs.msgs, msg)
 
 	if len(bs.msgs) <= bs.maxMsgLen {
@@ -37,6 +39,15 @@ func (bs *BuildStatus) addMsg(msg Message) bool {
 	bs.msgs = bs.msgs[len(bs.msgs)-bs.maxMsgLen:]
 
 	return true
+}
+
+func (bs *BuildStatus) clearMsgs() {
+	bs.msgs = nil
+	bs.hasMsgs = false
+}
+
+func (bs *BuildStatus) isEmpty() bool {
+	return !bs.hasMsgs && bs.error == nil
 }
 
 type BuildStatusPublisher struct {
@@ -72,19 +83,61 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 				}
 			}
 			buildStatus := b.buildStatus[msg.BuilderName()]
+			hadState := buildStatus.hasMsgs || buildStatus.error != nil
 
-			switch msg.(type) {
+			switch m := msg.(type) {
 			case BuildErrorMessage:
-				buildStatus.error = &msg
+				if m.Msg == "" {
+					buildStatus.error = nil
+				} else {
+					buildStatus.error = &msg
+				}
 			case IdleMessage:
 				log.Debug().Msgf("Received idle for %s, resetting state", msg.BuilderName())
 				buildStatus.msgs = []Message{msg}
+				buildStatus.hasMsgs = true
 				buildStatus.error = nil
 			default:
+				if m, ok := msg.(GenericMessage); ok && m.Msg == "" {
+					buildStatus.clearMsgs()
+					if buildStatus.isEmpty() {
+						if !hadState {
+							delete(b.buildStatus, msg.BuilderName())
+							b.waitStep()
+							continue
+						}
+						delete(b.buildStatus, msg.BuilderName())
+						msg = RemovedMessage{
+							GenericMessage: GenericMessage{
+								MsgType: "removed",
+								Builder: msg.BuilderName(),
+							},
+						}
+						break
+					}
+					b.waitStep()
+					continue
+				}
 				if !buildStatus.addMsg(msg) {
+					b.waitStep()
 					continue
 				}
 				log.Trace().Msgf("builder %s, %d messages", msg.BuilderName(), len(buildStatus.msgs))
+			}
+
+			if buildStatus.isEmpty() {
+				if !hadState {
+					delete(b.buildStatus, msg.BuilderName())
+					b.waitStep()
+					continue
+				}
+				delete(b.buildStatus, msg.BuilderName())
+				msg = RemovedMessage{
+					GenericMessage: GenericMessage{
+						MsgType: "removed",
+						Builder: msg.BuilderName(),
+					},
+				}
 			}
 
 			log.Debug().Msgf("%T{%s}", msg, msg.Get())
@@ -129,12 +182,7 @@ func (b *BuildStatusPublisher) PublishBuildStatus(ctx context.Context) {
 			return
 		}
 
-		// Used for testing purpose only
-		if b.stepChan != nil {
-			log.Debug().Msg("Waiting for tick")
-			<-b.stepChan
-			log.Debug().Msg("Received tick")
-		}
+		b.waitStep()
 	}
 }
 
@@ -181,6 +229,14 @@ func (b *BuildStatusPublisher) ListenHTTP(ctx context.Context) {
 func (b *BuildStatusPublisher) makeStep() {
 	if b.stepChan != nil {
 		b.stepChan <- struct{}{}
+	}
+}
+
+func (b *BuildStatusPublisher) waitStep() {
+	if b.stepChan != nil {
+		log.Debug().Msg("Waiting for tick")
+		<-b.stepChan
+		log.Debug().Msg("Received tick")
 	}
 }
 

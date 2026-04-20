@@ -127,6 +127,10 @@ type IdleMessage struct {
 	GenericMessage
 }
 
+type RemovedMessage struct {
+	GenericMessage
+}
+
 type SystemMessage struct {
 	GenericMessage
 	Status string

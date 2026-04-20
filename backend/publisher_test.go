@@ -109,7 +109,6 @@ func TestPublisherSendsError(t *testing.T) {
 
 func TestPublisherSendsEmptyError(t *testing.T) {
 	require := require.New(t)
-	assert := assert.New(t)
 
 	publisher, channels, cancel := createPublisher(t)
 
@@ -123,9 +122,7 @@ func TestPublisherSendsEmptyError(t *testing.T) {
 
 	cancel()
 
-	require.Len(msgs, 1)
-	assert.IsType(BuildErrorMessage{}, msgs[0])
-	assert.Equal("BuilderA: ", msgs[0].Get())
+	require.Empty(msgs)
 }
 
 func TestPublisherSendsErrorMessageWhenThreeMessagesReceived(t *testing.T) {
@@ -192,6 +189,60 @@ func TestPublisherResetsBuilderStateAfterIdle(t *testing.T) {
 	cancel()
 
 	require.Lenf(msgs, 1, "Expected only an idle message, received %d messages", len(msgs))
+}
+
+func TestPublisherRemovesBuilderWhenStatusAndErrorAreCleared(t *testing.T) {
+	require := require.New(t)
+
+	publisher, channels, cancel := createPublisher(t)
+
+	channels.msg <- MessageFromString("build/BuilderA", "pulling git")
+	publisher.makeStep()
+	channels.msg <- MessageFromString("build/BuilderA/errors", `{"reponame":"community","pkgname":"packageA","hostname":"BuilderA"}`)
+	publisher.makeStep()
+
+	publisher.connChan <- mockSubscriber{sent: channels.sent}
+	publisher.makeStep()
+	drainMessages(channels.sent)
+
+	channels.msg <- MessageFromString("build/BuilderA", "")
+	publisher.makeStep()
+	channels.msg <- MessageFromString("build/BuilderA/errors", "")
+	publisher.makeStep()
+
+	msgs := drainMessages(channels.sent)
+	cancel()
+
+	require.Len(msgs, 1)
+	require.IsType(RemovedMessage{}, msgs[0])
+	require.Equal("removed", msgs[0].(RemovedMessage).MsgType)
+	require.Equal("BuilderA", msgs[0].BuilderName())
+}
+
+func TestPublisherDoesNotRemoveBuilderWhenOnlyErrorIsCleared(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	publisher, channels, cancel := createPublisher(t)
+
+	channels.msg <- MessageFromString("build/BuilderA", "pulling git")
+	publisher.makeStep()
+	channels.msg <- MessageFromString("build/BuilderA/errors", `{"reponame":"community","pkgname":"packageA","hostname":"BuilderA"}`)
+	publisher.makeStep()
+
+	publisher.connChan <- mockSubscriber{sent: channels.sent}
+	publisher.makeStep()
+	drainMessages(channels.sent)
+
+	channels.msg <- MessageFromString("build/BuilderA/errors", "")
+	publisher.makeStep()
+
+	msgs := drainMessages(channels.sent)
+	cancel()
+
+	require.Len(msgs, 1)
+	assert.IsType(BuildErrorMessage{}, msgs[0])
+	assert.Equal("BuilderA: ", msgs[0].Get())
 }
 
 func createPublisher(t *testing.T) (*BuildStatusPublisher, *publisherChannels, context.CancelFunc) {
