@@ -49,7 +49,13 @@ type GenericMessage struct {
 }
 
 func MessageFromString(topic, msg string) Message {
-	_, builder, _ := strings.Cut(topic, "/")
+	builder, subtype := parseBuildTopic(topic)
+	if builder == "" {
+		return GenericMessage{
+			MsgType: "msg",
+			Msg:     msg,
+		}
+	}
 
 	genericMessage := GenericMessage{
 		MsgType: "msg",
@@ -57,11 +63,9 @@ func MessageFromString(topic, msg string) Message {
 		Builder: builder,
 	}
 
-	switch {
-	case strings.HasSuffix(topic, "/errors"):
-		builder, _, _ := strings.Cut(genericMessage.Builder, "/")
+	switch subtype {
+	case "errors":
 		genericMessage.MsgType = "error"
-		genericMessage.Builder = builder
 		m := BuildErrorMessage{
 			GenericMessage: genericMessage,
 		}
@@ -74,25 +78,37 @@ func MessageFromString(topic, msg string) Message {
 		}
 
 		return m
-	case progressMessagePattern.MatchString(msg):
-		genericMessage.MsgType = "progress"
-		submatches := progressMessagePattern.FindStringSubmatch(msg)
-		m := BuildStatusMessage{
-			GenericMessage: genericMessage,
-			BuildProgress:  ProgressFromString(submatches[1]),
-			TotalProgress:  ProgressFromString(submatches[2]),
-			PackageName:    submatches[3],
-			PackageVersion: submatches[4],
-		}
-
-		return m
-	case msg == "idle":
-		m := IdleMessage{GenericMessage: genericMessage}
-		m.MsgType = "idle"
-		return m
 	default:
-		return genericMessage
+		switch {
+		case progressMessagePattern.MatchString(msg):
+			genericMessage.MsgType = "progress"
+			submatches := progressMessagePattern.FindStringSubmatch(msg)
+			m := BuildStatusMessage{
+				GenericMessage: genericMessage,
+				BuildProgress:  ProgressFromString(submatches[1]),
+				TotalProgress:  ProgressFromString(submatches[2]),
+				PackageName:    submatches[3],
+				PackageVersion: submatches[4],
+			}
+
+			return m
+		case msg == "idle":
+			m := IdleMessage{GenericMessage: genericMessage}
+			m.MsgType = "idle"
+			return m
+		default:
+			return genericMessage
+		}
 	}
+}
+
+func parseBuildTopic(topic string) (builder, subtype string) {
+	parts := strings.Split(topic, "/")
+	if len(parts) < 2 || len(parts) > 3 || parts[0] != "build" || parts[1] == "" {
+		return "", ""
+	}
+
+	return parts[1], strings.Join(parts[2:], "/")
 }
 
 func (m GenericMessage) Get() string {
