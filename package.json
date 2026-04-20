@@ -1,0 +1,11 @@
+{
+  "name": "build-server-status-e2e",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2",
+    "mqtt": "^5.14.1"
+  }
+}

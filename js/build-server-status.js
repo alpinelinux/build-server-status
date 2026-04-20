@@ -9,10 +9,9 @@ const maxActivityCount = 3;
 
 class BuildServerStatus {
     constructor() {
-        const protocol = (window.location.protocol == "http:" ? "ws:" : "wss:")
-        this.wsEndpoint = `${protocol}//${window.location.host}/ws/`;
-        this.connect(this.wsEndpoint);
+        this.eventEndpoint = '/events';
         this.subscribers = [];
+        this.mqttState = null;
 
         const pre = document.createElement('p');
         pre.style.wordWrap = "break-word";
@@ -20,35 +19,36 @@ class BuildServerStatus {
         const mqtt_status = document.getElementById('mqtt_connect_status');
         mqtt_status.appendChild(pre);
         this.statusElem = pre;
+        this.status("Connecting", "#666");
+
+        this.connect(this.eventEndpoint);
     }
 
     connect(endpoint) {
-        const ws = new WebSocket(endpoint);
-        ws.addEventListener('open', data => this.open(data));
-        ws.addEventListener('close', data => this.close(data));
-        ws.addEventListener('message', data => this.msg(data));
-        ws.addEventListener('error', data => this.error(data));
+        const eventSource = new EventSource(endpoint);
+        eventSource.addEventListener('open', data => this.open(data));
+        eventSource.addEventListener('message', data => this.msg(data));
+        eventSource.addEventListener('error', data => this.error(data));
     }
 
     open(e) {
-        this.status("CONNECTED", "green");
+        this.renderStatus();
     }
 
     error(e) {
         console.error(e);
+        this.status("Reconnecting", "red");
     }
 
     msg(e) {
         const data = JSON.parse(e.data);
+        if (data.MsgType === 'system') {
+            this.updateSystemStatus(data);
+        }
 
         for (const subscriber of this.subscribers) {
             subscriber(data);
         }
-    }
-
-    close(e) {
-        this.status("CONNECTION LOST", "red");
-        setTimeout(() => this.connect(this.wsEndpoint), 2000);
     }
 
     subscribe(callback) {
@@ -58,6 +58,25 @@ class BuildServerStatus {
     status(msg, color) {
         this.statusElem.style.color = color;
         this.statusElem.innerText = msg;
+    }
+
+    updateSystemStatus(msg) {
+        this.mqttState = msg.Status;
+        this.renderStatus();
+    }
+
+    renderStatus() {
+        switch (this.mqttState) {
+        case 'mqtt-connected':
+            this.status("Live", "green");
+            break;
+        case 'mqtt-disconnected':
+            this.status("Broker disconnected", "red");
+            break;
+        default:
+            this.status("Connecting", "#666");
+            break;
+        }
     }
 }
 
@@ -69,6 +88,13 @@ class BuildServerInterface {
     }
 
     updateStatus(msg) {
+        if (msg.MsgType === 'system') {
+            return;
+        }
+        if (msg.MsgType === 'removed') {
+            this.removeBuilder(msg.Builder);
+            return;
+        }
         if (msg.Msg == "") {
             return;
         }
@@ -80,6 +106,17 @@ class BuildServerInterface {
 
         const builder = this.builders[msg.Builder];
         builder.update(msg);
+    }
+
+    removeBuilder(builderName) {
+        const builder = this.builders[builderName];
+        if (builder == undefined) {
+            return;
+        }
+
+        builder.remove();
+        delete this.builders[builderName];
+        this.sortTable();
     }
 
     sortTable() {
@@ -121,16 +158,26 @@ class Builder {
     constructor(parent, nr, builderName) {
         this.builderName = builderName;
         this.activity = [];
+        this.state = null;
 
         this.elem = rowTemplate.content.firstElementChild.cloneNode(true);
         this.elem.getElementsByClassName('nr')[0].innerText = nr;
-        this.elem.getElementsByClassName('host')[0].innerText = builderName;
+        this.hostElem = this.elem.getElementsByClassName('host')[0];
+        this.renderHost();
 
         parent.appendChild(this.elem);
     }
 
+    remove() {
+        this.elem.remove();
+    }
+
     update(msg) {
         switch(msg.MsgType) {
+        case "state":
+            this.state = msg.State;
+            this.renderHost();
+            break;
         case "progress":
             let pkgname = msg.PackageName.split("/")[1];
             this.activity.push({
@@ -162,6 +209,15 @@ class Builder {
             maxActivityCount + 1
         );
         this.updateActivity(this.activity);
+    }
+
+    renderHost() {
+        if (this.state == null || this.state === "") {
+            this.hostElem.innerHTML = this.builderName;
+            return;
+        }
+
+        this.hostElem.innerHTML = `${this.builderName} <span class="builder-state builder-state-${this.state}">${this.state}</span>`;
     }
 
     updateActivity(activity) {

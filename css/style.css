@@ -15,6 +15,32 @@ html, body {
 .errmsgs { color: red; }
 #mqtt_connect_status { font-size: 0.8em; font-weight: bold;}
 
+.builder-state {
+    display: inline-block;
+    margin-left: 0.5em;
+    padding: 0.1em 0.5em;
+    border-radius: 999px;
+    font-size: 0.75em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.builder-state-online {
+    background: #e6f4ea;
+    color: #2f7d32;
+}
+
+.builder-state-offline {
+    background: #eceff1;
+    color: #5f6b72;
+}
+
+.builder-state-lost {
+    background: #fdecea;
+    color: #b3261e;
+}
+
 h1, h2, h3 {
     letter-spacing: 0.10em;
     text-transform: uppercase;

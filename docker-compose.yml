@@ -5,6 +5,8 @@ services:
       - 8033:8080
   frontend:
     image: nginx:mainline-alpine
+    depends_on:
+      - backend
     volumes:
       - ./index.html:/var/www/index.html
       - ./js:/var/www/js

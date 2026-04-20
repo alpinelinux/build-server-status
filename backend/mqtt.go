@@ -49,7 +49,10 @@ type GenericMessage struct {
 }
 
 func MessageFromString(topic, msg string) Message {
-	_, builder, _ := strings.Cut(topic, "/")
+	builder, subtype := parseBuildTopic(topic)
+	if builder == "" {
+		return nil
+	}
 
 	genericMessage := GenericMessage{
 		MsgType: "msg",
@@ -57,11 +60,9 @@ func MessageFromString(topic, msg string) Message {
 		Builder: builder,
 	}
 
-	switch {
-	case strings.HasSuffix(topic, "/errors"):
-		builder, _, _ := strings.Cut(genericMessage.Builder, "/")
+	switch subtype {
+	case "errors":
 		genericMessage.MsgType = "error"
-		genericMessage.Builder = builder
 		m := BuildErrorMessage{
 			GenericMessage: genericMessage,
 		}
@@ -74,25 +75,47 @@ func MessageFromString(topic, msg string) Message {
 		}
 
 		return m
-	case progressMessagePattern.MatchString(msg):
-		genericMessage.MsgType = "progress"
-		submatches := progressMessagePattern.FindStringSubmatch(msg)
-		m := BuildStatusMessage{
+	case "state":
+		m := BuildStateMessage{
 			GenericMessage: genericMessage,
-			BuildProgress:  ProgressFromString(submatches[1]),
-			TotalProgress:  ProgressFromString(submatches[2]),
-			PackageName:    submatches[3],
-			PackageVersion: submatches[4],
+			State:          msg,
 		}
+		m.MsgType = "state"
+		return m
+	case "":
+		switch {
+		case progressMessagePattern.MatchString(msg):
+			genericMessage.MsgType = "progress"
+			submatches := progressMessagePattern.FindStringSubmatch(msg)
+			m := BuildStatusMessage{
+				GenericMessage: genericMessage,
+				BuildProgress:  ProgressFromString(submatches[1]),
+				TotalProgress:  ProgressFromString(submatches[2]),
+				PackageName:    submatches[3],
+				PackageVersion: submatches[4],
+			}
 
-		return m
-	case msg == "idle":
-		m := IdleMessage{GenericMessage: genericMessage}
-		m.MsgType = "idle"
-		return m
-	default:
-		return genericMessage
+			return m
+		case msg == "idle":
+			m := IdleMessage{GenericMessage: genericMessage}
+			m.MsgType = "idle"
+			return m
+		default:
+			return genericMessage
+		}
 	}
+
+	// Ignore unknown build subtopics.
+	return nil
+}
+
+func parseBuildTopic(topic string) (builder, subtype string) {
+	parts := strings.Split(topic, "/")
+	if len(parts) < 2 || len(parts) > 3 || parts[0] != "build" || parts[1] == "" {
+		return "", ""
+	}
+
+	return parts[1], strings.Join(parts[2:], "/")
 }
 
 func (m GenericMessage) Get() string {
@@ -127,12 +150,43 @@ type IdleMessage struct {
 	GenericMessage
 }
 
+type BuildStateMessage struct {
+	GenericMessage
+	State string
+}
+
+type RemovedMessage struct {
+	GenericMessage
+}
+
+type SystemMessage struct {
+	GenericMessage
+	Status string
+}
+
+func NewSystemMessage(status, msg string) SystemMessage {
+	return SystemMessage{
+		GenericMessage: GenericMessage{
+			MsgType: "system",
+			Msg:     msg,
+		},
+		Status: status,
+	}
+}
+
 func MessageHandler(ctx context.Context, msgs chan Message) mqtt.MessageHandler {
 	return func(c mqtt.Client, m mqtt.Message) {
 		log.Debug().
 			Str("topic", m.Topic()).
 			Str("payload", string(m.Payload())).
 			Msg("Received message from broker")
-		msgs <- MessageFromString(m.Topic(), string(m.Payload()))
+		msg := MessageFromString(m.Topic(), string(m.Payload()))
+		if msg == nil {
+			log.Debug().
+				Str("topic", m.Topic()).
+				Msg("Ignoring unknown build subtopic")
+			return
+		}
+		msgs <- msg
 	}
 }

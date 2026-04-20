@@ -1,0 +1,12 @@
+services:
+  backend:
+    build: ./backend
+    command: ["/build-server-status", "--log-level", "debug"]
+    depends_on:
+      - mosquitto
+    environment:
+      BSS_MQTT_BROKER: "tcp://mosquitto:1883"
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - 1883:1883

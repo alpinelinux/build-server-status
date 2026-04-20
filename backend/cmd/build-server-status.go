@@ -34,22 +34,29 @@ func main() {
 	})
 
 	log.Info().Msgf("Logging with loglevel %s", logLevel)
+	broker := os.Getenv("BSS_MQTT_BROKER")
+	if broker == "" {
+		broker = "tcp://msg.alpinelinux.org:1883"
+	}
+	msgs := make(chan backend.Message, 16)
 
 	opts := mqtt.
 		NewClientOptions().
-		AddBroker("tcp://msg.alpinelinux.org:1883").
+		AddBroker(broker).
 		SetClientID(fmt.Sprintf("build-server-status-%d", time.Now().UnixMicro())).
 		SetAutoReconnect(true).
 		SetCleanSession(false).
 		SetMaxReconnectInterval(1 * time.Minute).
 		SetOnConnectHandler(func(c mqtt.Client) {
 			log.Info().Msg("Connected to broker")
+			msgs <- backend.NewSystemMessage("mqtt-connected", "Connected to broker")
 		}).
 		SetConnectionLostHandler(func(c mqtt.Client, err error) {
 			log.
 				Error().
 				Err(fmt.Errorf("Connection to broker lost: %w", err)).
 				Msg("")
+			msgs <- backend.NewSystemMessage("mqtt-disconnected", "Connection to broker lost")
 		})
 
 	client := mqtt.NewClient(
@@ -57,7 +64,7 @@ func main() {
 	)
 
 	ctx := context.Background()
-	err = backend.Run(ctx, client)
+	err = backend.Run(ctx, client, msgs)
 	if err != nil {
 		panic(err)
 	}
