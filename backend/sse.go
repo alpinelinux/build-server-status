@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -233,12 +234,45 @@ func (b *BuildStatusPublisher) sseHandler() http.HandlerFunc {
 func (b *BuildStatusPublisher) ListenHTTP(ctx context.Context) {
 	go b.PublishBuildStatus(ctx)
 
+	listener, err := net.Listen("tcp", "0.0.0.0:8080")
+	if err != nil {
+		log.Error().Err(err).Msg("http listener failed")
+		return
+	}
+
+	if err := b.serveHTTP(ctx, listener); err != nil {
+		log.Error().Err(err).Msg("http listener failed")
+	}
+}
+
+func (b *BuildStatusPublisher) serveHTTP(ctx context.Context, listener net.Listener) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/events", b.sseHandler())
 
-	log.Info().Msgf("Listening on 0.0.0.0:8080")
-	err := http.ListenAndServe("0.0.0.0:8080", mux)
-	log.Error().Err(err).Msg("http listener failed")
+	server := &http.Server{
+		Handler: mux,
+	}
+
+	shutdownDone := make(chan struct{})
+	go func() {
+		defer close(shutdownDone)
+		<-ctx.Done()
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(shutdownCtx); err != nil && !errors.Is(err, net.ErrClosed) {
+			log.Error().Err(err).Msg("http shutdown failed")
+		}
+	}()
+
+	log.Info().Msgf("Listening on %s", listener.Addr())
+	err := server.Serve(listener)
+	<-shutdownDone
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
 }
 
 func (b *BuildStatusPublisher) makeStep() {
