@@ -53,6 +53,22 @@ test('renders a builder state badge from MQTT', async ({ page }) => {
   await expect(hostCell).toContainText('lost');
 });
 
+test('does not show build/<builder>/unknown in the activity column', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.locator('#mqtt_connect_status')).toContainText('Live');
+
+  await publish('build/test-builder-activity/state', 'online');
+  await publish('build/test-builder-activity/unknown', 'should not be shown');
+
+  const builderRow = page.locator('#servers tr').filter({
+    has: page.locator('.host', { hasText: 'test-builder-activity' })
+  });
+
+  await expect(builderRow.locator('.host')).toContainText('online');
+  await expect(builderRow.locator('.msgs')).toHaveText('');
+});
+
 test('shows broker disconnected when mosquitto stops', async ({ page }) => {
   await page.goto('/');
 

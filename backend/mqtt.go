@@ -51,10 +51,7 @@ type GenericMessage struct {
 func MessageFromString(topic, msg string) Message {
 	builder, subtype := parseBuildTopic(topic)
 	if builder == "" {
-		return GenericMessage{
-			MsgType: "msg",
-			Msg:     msg,
-		}
+		return nil
 	}
 
 	genericMessage := GenericMessage{
@@ -85,7 +82,7 @@ func MessageFromString(topic, msg string) Message {
 		}
 		m.MsgType = "state"
 		return m
-	default:
+	case "":
 		switch {
 		case progressMessagePattern.MatchString(msg):
 			genericMessage.MsgType = "progress"
@@ -107,6 +104,9 @@ func MessageFromString(topic, msg string) Message {
 			return genericMessage
 		}
 	}
+
+	// Ignore unknown build subtopics.
+	return nil
 }
 
 func parseBuildTopic(topic string) (builder, subtype string) {
@@ -180,6 +180,13 @@ func MessageHandler(ctx context.Context, msgs chan Message) mqtt.MessageHandler 
 			Str("topic", m.Topic()).
 			Str("payload", string(m.Payload())).
 			Msg("Received message from broker")
-		msgs <- MessageFromString(m.Topic(), string(m.Payload()))
+		msg := MessageFromString(m.Topic(), string(m.Payload()))
+		if msg == nil {
+			log.Debug().
+				Str("topic", m.Topic()).
+				Msg("Ignoring unknown build subtopic")
+			return
+		}
+		msgs <- msg
 	}
 }

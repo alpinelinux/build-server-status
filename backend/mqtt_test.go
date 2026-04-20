@@ -53,3 +53,15 @@ func TestMessageFromStringKeepsBuilderNameForStateSubtopic(t *testing.T) {
 	assert.Equal(t, "BuilderA", msg.BuilderName())
 	assert.Equal(t, "online", msg.(BuildStateMessage).State)
 }
+
+func TestMessageFromStringIgnoresUnknownBuildSubtopic(t *testing.T) {
+	msg := MessageFromString("build/BuilderA/unknown", "should not be shown")
+
+	assert.Nil(t, msg)
+}
+
+func TestMessageFromStringIgnoresBuildTopicWithoutBuilder(t *testing.T) {
+	msg := MessageFromString("build", "should not be shown")
+
+	assert.Nil(t, msg)
+}
