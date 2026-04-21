@@ -2,7 +2,7 @@ module gitlab.alpinelinux.org/alpine/infra/build-server-status/backend
 
 go 1.24.0
 
-toolchain go1.26.0
+toolchain go1.26.2
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.1
